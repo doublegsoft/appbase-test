@@ -1,0 +1,207 @@
+@persistence(name='tn_acm_dept')
+@name(label='部门', plural='departments')
+department<
+
+  @persistence(name='deptid')
+  @name(label='部门ID')
+  id!!: long,
+
+  @persistence(name='prntid')
+  @name(label='父部门ID')
+  parent_id: long,
+
+  @persistence(name='ancs')
+  @name(label='祖先节点路径')
+  ancestors!: string(500),
+
+  @persistence(name='deptnm')
+  @name(label='部门名称')
+  name!: string(100),
+
+  @persistence(name='depttyp')
+  @name(label='部门类型')
+  type!: enum[GRP:GROUP('集团'),CMP:COMPANY('公司'),DIV:DIVISION('事业部'),DEP:DEPARTMENT('具体部门'),TEM:TEAM('临时项目组')],
+
+  @persistence(name='ldrusrid')
+  @name(label='部门负责人ID')
+  leader_user_id: long,
+
+  @persistence(name='srt')
+  @name(label='排序值')
+  sort: int,
+
+  @persistence(name='crttm')
+  @name(label='创建时间')
+  created_time: datetime,
+
+  @persistence(name='updtm')
+  @name(label='更新时间')
+  updated_time: datetime
+>
+
+@persistence(name='tn_acm_rl')
+@name(label='角色', plural='roles')
+role<
+
+  @persistence(name='rlid')
+  @name(label='角色ID')
+  id!!: long,
+
+  @persistence(name='rlcd')
+  @name(label='角色编码')
+  code!: string(50),
+
+  @persistence(name='rlnm')
+  @name(label='角色名称')
+  name!: string(100),
+
+  @persistence(name='descr')
+  @name(label='描述')
+  description: string(500),
+
+  @persistence(name='stus')
+  @name(label='状态')
+  status!: enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')],
+
+  @persistence(name='crttm')
+  @name(label='创建时间')
+  created_time: datetime,
+
+  @persistence(name='updtm')
+  @name(label='更新时间')
+  updated_time: datetime
+>
+
+@persistence(name='tn_acm_funcperm')
+@name(label='功能权限', plural='func_permissions')
+functional_permission<
+
+  @persistence(name='permid')
+  @name(label='权限ID')
+  id!!: long,
+
+  @persistence(name='prntid')
+  @name(label='父权限ID')
+  parent_id: long,
+
+  @persistence(name='permcd')
+  @name(label='权限编码')
+  code!: string(100),
+
+  @persistence(name='permnm')
+  @name(label='权限名称')
+  name!: string(100),
+
+  @persistence(name='permtyp')
+  @name(label='权限类型')
+  type!: enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')],
+
+  @persistence(name='pth')
+  @name(label='路由接口路径')
+  path: string(250),
+
+  @persistence(name='mthd')
+  @name(label='HTTP方法')
+  method: enum[GET:GET('获取'),POST:POST('新增'),PUT:PUT('修改'),DEL:DELETE('删除'),ALL:ALL('全部')],
+
+  @persistence(name='srt')
+  @name(label='排序')
+  sort: int,
+
+  @persistence(name='crttm')
+  @name(label='创建时间')
+  created_time: datetime,
+
+  @persistence(name='updtm')
+  @name(label='更新时间')
+  updated_time: datetime
+>
+
+@persistence(name='tn_acm_datpermrule')
+@name(label='数据权限规则', plural='data_rules')
+data_permission_rule<
+
+  @persistence(name='ruleid')
+  @name(label='规则ID')
+  id!!: long,
+
+  @persistence(name='rlid')
+  @name(label='角色ID')
+  role_id!: long,
+
+  @persistence(name='rescd')
+  @name(label='资源编码')
+  resource_code!: string(50),
+
+  @persistence(name='scptyp')
+  @name(label='数据范围类型')
+  scope_type!: enum[ALL:ALL('全部数据'),OWN:OWNER('仅本人数据'),DEPT:DEPARTMENT('本部门数据'),SUB:SUBDEPT('本部门及子部门数据'),CST:CUSTOM('自定义部门数据')],
+
+  @persistence(name='crttm')
+  @name(label='创建时间')
+  created_time: datetime,
+
+  @persistence(name='updtm')
+  @name(label='更新时间')
+  updated_time: datetime
+>
+
+@persistence(name='tv_acm_usrdept')
+@name(label='用户部门关联', plural='user_departments')
+user_department<
+
+  @persistence(name='usrid')
+  @name(label='用户ID')
+  user_id!!: long,
+
+  @persistence(name='deptid')
+  @name(label='部门ID')
+  department_id!!: long,
+
+  @persistence(name='ispri')
+  @name(label='是否主部门')
+  is_primary!: enum[Y:YES('是'),N:NO('否')]
+>
+
+@persistence(name='tv_acm_usrrl')
+@name(label='用户角色关联', plural='user_roles')
+user_role<
+
+  @persistence(name='usrid')
+  @name(label='用户ID')
+  user_id!!: long,
+
+  @persistence(name='rlid')
+  @name(label='角色ID')
+  role_id!!: long,
+
+  @persistence(name='scpdeptid')
+  @name(label='作用部门ID')
+  scope_department_id: long
+>
+
+@persistence(name='tx_acm_rlfuncperm')
+@name(label='角色功能权限关联', plural='role_func_permissions')
+role_functional_permission<
+
+  @persistence(name='rlid')
+  @name(label='角色ID')
+  role_id!!: long,
+
+  @persistence(name='permid')
+  @name(label='功能权限ID')
+  permission_id!!: long
+>
+
+@persistence(name='tx_acm_rldeptdat')
+@name(label='角色部门数据权限关联', plural='role_dept_datas')
+role_department_data<
+
+  @persistence(name='ruleid')
+  @name(label='数据权限规则ID')
+  rule_id!!: long,
+
+  @persistence(name='deptid')
+  @name(label='部门ID')
+  department_id!!: long
+>
