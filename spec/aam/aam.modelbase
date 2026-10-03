@@ -1,5 +1,8 @@
 @module(name='aam', text='automation administration management')
 
+// ==========================================
+// 1. 流程定义（设计态）
+// ==========================================
 @persistence(name='tn_aam_autprcs')
 @name(label='流程定义', plural='automated_processes')
 automated_process<
@@ -10,11 +13,15 @@ automated_process<
 
   @persistence(name='autprcscd')
   @name(label='流程编码')
-  code: string,
+  code!+: string,
 
   @persistence(name='autprcsnm')
   @name(label='流程名称')
   name: string(100),
+
+  @persistence(name='ver')
+  @name(label='流程版本')
+  version: integer,
 
   @persistence(name='descr')
   @name(label='描述')
@@ -22,102 +29,146 @@ automated_process<
 
   @persistence(name='status')
   @name(label='流程状态')
-  status: enum[01:active, 02:inactive],
+  status: enum[
+    01:ACTIVE('启用'),
+    02:INACTIVE('停用')
+  ],
 
   @persistence(name='triggertype')
   @name(label='触发类型')
-  trigger_type: enum[MN:manual, EV:event, SC:schedule],
-
-  @persistence(name='actiontype')
-  type: enum[01:api, 02:sql, 03:script, 04:call_process],
-
-  @persistence(name='content')
-  content: text,
-
-  @persistence(name='retrypolicy')
-  retry_policy: string,
+  trigger_type: enum[
+    MN:MANUAL('手动触发'),
+    EV:EVENT('事件触发'),
+    SC:SCHEDULE('定时调度')
+  ],
 
   @persistence(name='createdat')
   @name(label='创建时间')
   created_at: datetime,
 
-  @name(label='资流程流程节点', singular='subprocess')
-  subprocesses: &automated_subprocess(id)[]
+  @name(label='流程任务集合', singular='task')
+  tasks: &automated_process_task(id)[]
 >
 
+// ==========================================
+// 2. 流程任务定义（设计态）
+// ==========================================
 @entity
-@persistence(name='tn_aam_autsprcs')
-@name(label='子流程（流程节点）定义', plural='automated_subprocesses')
-automated_subprocess<
+@persistence(name='tn_aam_auttask')
+@name(label='流程任务定义', plural='automated_process_tasks')
+automated_process_task<
 
-  @persistence(name='autsprcsid')
-  @name(label='子流程标识')
+  @persistence(name='auttaskid')
+  @name(label='任务标识')
   id!!: id,
 
   @persistence(name='autprcsid')
   @name(label='所属流程')
   process: &automated_process(id),
 
-  @persistence(name='autsprcscd')
-  @name(label='子流程编码')
+  @persistence(name='auttaskcd')
+  @name(label='任务编码')
   code: string(50),
 
-  @persistence(name='autsprcsnm')
-  @name(label='子流程名称')
+  @persistence(name='auttasknm')
+  @name(label='任务名称')
   name: string(200),
 
-  @persistence(name='autsprcstyp')
-  @name(label='子流程类型')
+  @persistence(name='auttasktyp')
+  @name(label='任务类型')
   type: enum[
-    ST:开始,
-    AC:自动任务,
-    HU:人工任务,
-    DC:条件判断,
-    TM:定时器,
-    SB:子流程,
-    EN:结束
+    ST:START('开始'),
+    AC:AUTO_TASK('自动任务'),
+    HU:HUMAN_TASK('人工任务'),
+    DC:DECISION('条件分支'),
+    FK:FORK('并行分支'),
+    JN:JOIN('并行聚合'),
+    TM:TIMER('定时器/等待'),
+    SB:SUB_PROCESS('嵌套子流程'),
+    EN:END('结束')
+  ],
+
+  // --- 自动化任务配置 ---
+  @persistence(name='acttyp')
+  @name(label='动作类型')
+  action_type: enum[
+    01:API('接口调用'),
+    02:SQL('数据库操作'),
+    03:SCRIPT('脚本执行'),
+    04:CALL_PROCESS('调用子流程')
   ],
 
   @persistence(name='exec')
-  @name(label='执行类/脚本/Bean')
-  executor: string(200),
+  @name(label='执行目标(类名/URL/脚本内容)')
+  executor: string(2000),
 
+  @persistence(name='rtryplc')
+  @name(label='重试策略(JSON)')
+  retry_policy: string(500),
+
+  // --- 人工任务与表单配置 ---
+  @persistence(name='asgntyp')
+  @name(label='办理人类型')
+  assignee_type: enum[
+    UR:USER('指定用户'),
+    RL:ROLE('指定角色'),
+    DP:DEPT_LEADER('部门主管'),
+    EX:EXPRESSION('动态表达式')
+  ],
+
+  @persistence(name='asgnexpr')
+  @name(label='办理人规则表达式')
+  assignee_expression: string(200),
+
+  @persistence(name='formkey')
+  @name(label='挂载前端表单Key')
+  form_key: string(100),
+
+  // --- 通用流转配置 ---
   @persistence(name='expr')
-  @name(label='条件表达式')
+  @name(label='条件/定时表达式')
   expression: string(1000),
 
   @persistence(name='tosec')
-  @name(label='超时（秒）')
+  @name(label='超时时间（秒）')
   timeout_seconds: integer,
 
-  @name(label='流出连线', singular='transition')
+  @name(label='任务流出连线', singular='transition')
   transitions: &automated_process_transition(source)[]
 >
 
+// ==========================================
+// 3. 任务流转连线（设计态）
+// ==========================================
 @value
-@persistence(name='tv_aam_autprcstrans')
-@name(label='流程定义', plural='automated_process_transitions')
+@persistence(name='tv_aam_auttrans')
+@name(label='任务流转连线', plural='automated_process_transitions')
 automated_process_transition<
 
-  @persistence(name='srcsprcsid')
-  @name(label='源头节点')
-  source!!: &automated_subprocess(id),
+  @persistence(name='autprcsid')
+  @name(label='所属流程')
+  process!!: &automated_process(id),
 
-  @persistence(name='tgtsprcsid')
-  @name(label='目标节点')
-  target!!: &automated_subprocess(id),
+  @persistence(name='srctaskid')
+  @name(label='源任务')
+  source!!: &automated_process_task(id),
+
+  @persistence(name='tgttaskid')
+  @name(label='目标任务')
+  target!!: &automated_process_task(id),
 
   @persistence(name='cond')
-  @name(label='条件')
+  @name(label='流转条件(EL表达式)')
   condition: string(1000),
 
   @persistence(name='prio')
-  @name(label='优先级')
+  @name(label='流转优先级')
   priority: integer
 >
 
-
-
+// ==========================================
+// 4. 流程实例（运行态）
+// ==========================================
 @persistence(name='tn_aam_autprcsinst')
 @name(label='流程实例', singular='automated_process_instance', plural='automated_process_instances')
 automated_process_instance<
@@ -130,26 +181,155 @@ automated_process_instance<
   @name(label='流程定义')
   automated_process: &automated_process(id),
 
+  @persistence(name='bizkey')
+  @name(label='业务单据主键/外部标识')
+  business_key: string(100),
+
   @persistence(name='sts')
   @name(label='流程状态')
-  status: enum[01:挂起, 02:运行, 03:完成, 04:失败, 05:取消],
+  status: enum[
+    01:RUNNING('运行中'),
+    02:SUSPENDED('挂起'),
+    03:COMPLETED('已完成'),
+    04:FAILED('执行失败'),
+    05:TERMINATED('手动终止')
+  ],
 
   @persistence(name='stby')
-  @name(label='流程启动用户')
-  started_by: id,
+  @name(label='启动人')
+  started_by: string(100),
 
   @persistence(name='sttm')
-  @name(label='流程启动时间')
+  @name(label='启动时间')
   started_time: datetime,
 
   @persistence(name='ndtm')
-  @name(label='流程结束时间')
+  @name(label='结束时间')
+  end_time: datetime,
+
+  @name(label='任务执行轨迹', singular='task_instance')
+  task_instances: &automated_task_instance(process_instance)[]
+>
+
+// ==========================================
+// 5. 任务执行实例（运行态：用于待办、任务执行审计与跟踪）
+// ==========================================
+@persistence(name='tn_aam_auttaskinst')
+@name(label='任务执行实例', singular='automated_task_instance', plural='automated_task_instances')
+automated_task_instance<
+
+  @persistence(name='taskinstid')
+  @name(label='任务实例标识')
+  id!!: id,
+
+  @persistence(name='autprcsinstid')
+  @name(label='所属流程实例')
+  process_instance!!: &automated_process_instance(id),
+
+  @persistence(name='auttaskid')
+  @name(label='对应流程任务')
+  task!!: &automated_process_task(id),
+
+  @persistence(name='sts')
+  @name(label='任务状态')
+  status: enum[
+    01:PENDING('待处理/待认领'),
+    02:RUNNING('执行中'),
+    03:COMPLETED('已完成'),
+    04:REJECTED('已驳回/拒绝'),
+    05:FAILED('执行异常'),
+    06:SKIPPED('已跳过')
+  ],
+
+  @persistence(name='asgnuser')
+  @name(label='实际办理人/执行人')
+  assignee: string(100),
+
+  @persistence(name='actout')
+  @name(label='处理动作')
+  action: enum[
+    AG:AGREE('同意'),
+    RJ:REJECT('驳回'),
+    TR:TRANSFER('转办'),
+    AT:AUTO_FINISH('自动完成')
+  ],
+
+  @persistence(name='comment')
+  @name(label='审批意见/执行日志')
+  comment: string(2000),
+
+  @persistence(name='rtrycnt')
+  @name(label='重试次数')
+  retry_count: integer,
+
+  @persistence(name='sttm')
+  @name(label='开始时间')
+  started_time: datetime,
+
+  @persistence(name='ndtm')
+  @name(label='完成时间')
   end_time: datetime
 >
 
+// ==========================================
+// 6. 任务流转实例（运行态：记录分支流动、网关流转及条件评估历史）
+// ==========================================
+@persistence(name='tn_aam_auttransinst')
+@name(label='任务流转实例', singular='automated_transition_instance', plural='automated_transition_instances')
+automated_transition_instance<
+
+  @persistence(name='transinstid')
+  @name(label='流转实例标识')
+  id!!: id,
+
+  @persistence(name='autprcsinstid')
+  @name(label='所属流程实例')
+  process_instance!!: &automated_process_instance(id),
+
+  @persistence(name='srctaskinstid')
+  @name(label='前置来源任务实例')
+  source_task_instance: &automated_task_instance(id),
+
+  @persistence(name='tgttaskinstid')
+  @name(label='后置目标任务实例')
+  target_task_instance: &automated_task_instance(id),
+
+  @persistence(name='srctaskid')
+  @name(label='设计态源节点')
+  source_task: &automated_process_task(id),
+
+  @persistence(name='tgttaskid')
+  @name(label='设计态目标节点')
+  target_task: &automated_process_task(id),
+
+  @persistence(name='evalres')
+  @name(label='流转判定状态')
+  status: enum[
+    01:PASSED('通过/激活'),
+    02:IGNORED('未满足/跳过'),
+    03:FAILED('表达式求值异常')
+  ],
+
+  @persistence(name='condexpr')
+  @name(label='求值时快照表达式')
+  condition_expression: string(1000),
+
+  @persistence(name='evalctx')
+  @name(label='求值参数上下文快照(JSON)')
+  evaluation_context: string(2000),
+
+  @persistence(name='transtm')
+  @name(label='流转触发时间')
+  transition_time: datetime
+>
+
+// ==========================================
+// 7. 流程变量（运行态上下文）
+// ==========================================
 @persistence(name='tn_aam_autprcsvar')
 @name(label='流程变量', singular='automated_process_variable', plural='automated_process_variables')
 automated_process_variable<
+
   @persistence(name='autprcsvarid')
   @name(label='流程变量标识')
   id!!: id,
@@ -159,14 +339,133 @@ automated_process_variable<
   automated_process_instance: &automated_process_instance(id),
 
   @persistence(name='autprcsvarnm')
-  @name(label='流程变量名称')
+  @name(label='变量名称')
   name: string,
 
   @persistence(name='autprcsvartyp')
-  @name(label='流程变量类型')
-  type: enum[ST:字符串, NR:数字, BL:布尔, JS:JSON, DT:日期],
+  @name(label='变量类型')
+  type: enum[
+    ST:STRING('字符串'),
+    NR:NUMBER('数字'),
+    BL:BOOLEAN('布尔'),
+    JS:JSON('JSON对象'),
+    DT:DATETIME('日期时间')
+  ],
 
   @persistence(name='val')
-  @name(label='流程变量值')
-  value: string
+  @name(label='变量值')
+  value: text
+>
+
+@name(label='流程定义聚合对象', plural='automated_process_aggregate')
+automated_process_aggregate<
+
+  @name(label='流程定义')
+  process: &automated_process(id),
+  
+  @name(label='流程定义任务', singular='task')
+  tasks: &automated_process_task(id)[],
+  
+  @name(label='流程定义连线', singular='transition')
+  transitions: &automated_process_transition(process)[]
+>
+
+@name(label='流程实例聚合对象', plural='automated_process_instance_aggregates')
+automated_process_instance_aggregate<
+
+  @name(label='流程实例')
+  process_instance: &automated_process_instance(id),
+  
+  // @name(label='流程实例任务', plural='task')
+  // task_instances: &automated_task_instance(id)[],
+  
+  // @name(label='流程定义任务', plural='task')
+  // @conjunction(
+  //   source_object='automated_task_instance', source_attribute='process_instance',
+  //   target_object='automated_task_instance', target_attribute='task'
+  // )
+  // tasks: &automated_process_task(id)[],
+  
+  @name(label='流程实例任务', singular='task_instance')
+  task_instances:&task_instance_row(process_instance_id)[],
+  
+  @name(label='流程实例连线', singular='transition_instance')
+  transition_instances: &automated_transition_instance(process_instance)[]
+>
+
+@name(label='任务实例', plural='task_instance_rows')
+task_instance_row<
+
+  @original(object='automated_task_instance', attribute='id')
+  @name(label='任务实例标识')
+  automated_task_instance_id: id,
+
+  @original(object='automated_task_instance', attribute='process_instance')
+  @name(label='所属流程实例')
+  process_instance_id: id,
+  
+  @original(object='automated_task_instance', attribute='status')
+  @name(label='任务状态')
+  status: enum[
+    01:PENDING('待处理/待认领'),
+    02:RUNNING('执行中'),
+    03:COMPLETED('已完成'),
+    04:REJECTED('已驳回/拒绝'),
+    05:FAILED('执行异常'),
+    06:SKIPPED('已跳过')
+  ],
+
+  @original(object='automated_task_instance', attribute='assignee')
+  @name(label='实际办理人/执行人')
+  assignee: string(100),
+
+  @original(object='automated_task_instance', attribute='action')
+  @name(label='处理动作')
+  action: enum[
+    AG:AGREE('同意'),
+    RJ:REJECT('驳回'),
+    TR:TRANSFER('转办'),
+    AT:AUTO_FINISH('自动完成')
+  ],
+
+  @original(object='automated_task_instance', attribute='comment')
+  @name(label='审批意见/执行日志')
+  comment: string(2000),
+
+  @original(object='automated_task_instance', attribute='retry_count')
+  @name(label='重试次数')
+  retry_count: integer,
+
+  @original(object='automated_task_instance', attribute='started_time')
+  @name(label='开始时间')
+  started_time: datetime,
+
+  @original(object='automated_task_instance', attribute='end_time')
+  @name(label='完成时间')
+  end_time: datetime,
+  
+  @original(object='automated_process_task', attribute='code')
+  @name(label='任务编码')
+  code: string(50),
+  
+  @original(object='automated_process_task', attribute='id')
+  @name(label='任务标识')
+  task_id: id,
+
+  @original(object='automated_process_task', attribute='name')
+  @name(label='任务名称')
+  name: string(200),
+
+  @original(object='automated_process_task', attribute='executor')
+  @name(label='执行目标(类名/URL/脚本内容)')
+  executor: string(2000),
+  
+  @original(object='automated_process_task', attribute='assignee_expression')
+  @name(label='办理人规则表达式')
+  assignee_expression: string(200),
+  
+  @original(object='automated_process_task', attribute='expression')
+  @name(label='条件/定时表达式')
+  expression: string(1000)
+
 >

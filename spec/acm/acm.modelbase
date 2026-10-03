@@ -1,29 +1,29 @@
-@persistence(name='tn_acm_dept')
-@name(label='部门', plural='departments')
-department<
+@persistence(name='tn_acm_secscp')
+@name(label='权限作用域', plural='security_scopes')
+security_scope<
 
-  @persistence(name='deptid')
-  @name(label='部门ID')
+  @persistence(name='secscpid')
+  @name(label='作用域ID')
   id!!: long,
 
   @persistence(name='prntid')
-  @name(label='父部门ID')
+  @name(label='父作用域ID')
   parent_id: long,
 
   @persistence(name='ancs')
   @name(label='祖先节点路径')
   ancestors!: string(500),
 
-  @persistence(name='deptnm')
-  @name(label='部门名称')
+  @persistence(name='secscpnm')
+  @name(label='作用域名称')
   name!: string(100),
 
-  @persistence(name='depttyp')
-  @name(label='部门类型')
-  type!: enum[GRP:GROUP('集团'),CMP:COMPANY('公司'),DIV:DIVISION('事业部'),DEP:DEPARTMENT('具体部门'),TEM:TEAM('临时项目组')],
+  @persistence(name='secscptyp')
+  @name(label='作用域类型')
+  type!: enum[GRP:GROUP('集团域'),CMP:COMPANY('公司域'),DIV:DIVISION('事业部域'),DEP:DEPARTMENT('部门域'),TEM:TEAM('项目域'),CST:CUSTOM('自定义域')],
 
   @persistence(name='ldrusrid')
-  @name(label='部门负责人ID')
+  @name(label='作用域负责人ID')
   leader_user_id: long,
 
   @persistence(name='srt')
@@ -69,12 +69,20 @@ role<
 
   @persistence(name='updtm')
   @name(label='更新时间')
-  updated_time: datetime
+  updated_time: datetime,
+  
+  @conjunction(object='role_function_permission')
+  @name(label='功能', singular='function')
+  functions: &function_permission(id)[],
+  
+  @conjunction(object='role_resource_permission')
+  @name(label='资源', singular='resource')
+  resources: &resource_permission(id)[]
 >
 
 @persistence(name='tn_acm_funcperm')
-@name(label='功能权限', plural='func_permissions')
-functional_permission<
+@name(label='功能权限', plural='function_permissions')
+function_permission<
 
   @persistence(name='permid')
   @name(label='权限ID')
@@ -117,12 +125,12 @@ functional_permission<
   updated_time: datetime
 >
 
-@persistence(name='tn_acm_datpermrule')
-@name(label='数据权限规则', plural='data_rules')
-data_permission_rule<
+@persistence(name='tn_acm_resperm')
+@name(label='资源权限', plural='resource_permissions')
+resource_permission<
 
-  @persistence(name='ruleid')
-  @name(label='规则ID')
+  @persistence(name='respermid')
+  @name(label='资源权限ID')
   id!!: long,
 
   @persistence(name='rlid')
@@ -134,8 +142,8 @@ data_permission_rule<
   resource_code!: string(50),
 
   @persistence(name='scptyp')
-  @name(label='数据范围类型')
-  scope_type!: enum[ALL:ALL('全部数据'),OWN:OWNER('仅本人数据'),DEPT:DEPARTMENT('本部门数据'),SUB:SUBDEPT('本部门及子部门数据'),CST:CUSTOM('自定义部门数据')],
+  @name(label='范围类型')
+  scope_type!: enum[ALL:ALL('全部数据'),OWN:OWNER('仅本人数据'),SCP:CURRENT_SCOPE('当前作用域数据'),SUB:SUB_SCOPE('当前及子作用域数据'),CST:CUSTOM('自定义作用域数据')],
 
   @persistence(name='crttm')
   @name(label='创建时间')
@@ -146,20 +154,20 @@ data_permission_rule<
   updated_time: datetime
 >
 
-@persistence(name='tv_acm_usrdept')
-@name(label='用户部门关联', plural='user_departments')
-user_department<
+@persistence(name='tv_acm_usrsecscp')
+@name(label='用户作用域关联', plural='user_security_scopes')
+user_security_scope<
 
   @persistence(name='usrid')
   @name(label='用户ID')
   user_id!!: long,
 
-  @persistence(name='deptid')
-  @name(label='部门ID')
-  department_id!!: long,
+  @persistence(name='secscpid')
+  @name(label='作用域ID')
+  scope_id!!: long,
 
   @persistence(name='ispri')
-  @name(label='是否主部门')
+  @name(label='是否主作用域')
   is_primary!: enum[Y:YES('是'),N:NO('否')]
 >
 
@@ -175,33 +183,33 @@ user_role<
   @name(label='角色ID')
   role_id!!: long,
 
-  @persistence(name='scpdeptid')
-  @name(label='作用部门ID')
-  scope_department_id: long
+  @persistence(name='secscpid')
+  @name(label='生效作用域ID')
+  scope_id: long
 >
 
 @persistence(name='tx_acm_rlfuncperm')
-@name(label='角色功能权限关联', plural='role_func_permissions')
-role_functional_permission<
+@name(label='角色功能权限关联', plural='role_function_permissions')
+role_function_permission<
 
   @persistence(name='rlid')
   @name(label='角色ID')
-  role_id!!: long,
+  role!!: &role(id),
 
-  @persistence(name='permid')
+  @persistence(name='funcpermid')
   @name(label='功能权限ID')
-  permission_id!!: long
+  function_permission!!: &function_permission(id)
 >
 
-@persistence(name='tx_acm_rldeptdat')
-@name(label='角色部门数据权限关联', plural='role_dept_datas')
-role_department_data<
+@persistence(name='tx_acm_rlresperm')
+@name(label='资源权限作用域关联', plural='role_resource_permissions')
+role_resource_permission<
 
-  @persistence(name='ruleid')
-  @name(label='数据权限规则ID')
-  rule_id!!: long,
-
-  @persistence(name='deptid')
-  @name(label='部门ID')
-  department_id!!: long
+  @persistence(name='rlid')
+  @name(label='角色ID')
+  role!!: &role(id),
+  
+  @persistence(name='respermid')
+  @name(label='资源权限ID')
+  resource_permission!!: &resource_permission(id)
 >
