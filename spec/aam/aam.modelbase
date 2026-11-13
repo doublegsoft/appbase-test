@@ -181,9 +181,15 @@ automated_process_instance<
   @name(label='流程定义')
   automated_process: &automated_process(id),
 
-  @persistence(name='bizkey')
-  @name(label='业务单据主键/外部标识')
-  business_key: string(100),
+  @persistence(name='biztyp')
+  @name(label='业务单据类型')
+  @reference(name='business', value='type')
+  business_type: string(100),
+  
+  @persistence(name='bizid')
+  @name(label='业务单据标识')
+  @reference(name='business', value='id')
+  business_id: id,
 
   @persistence(name='sts')
   @name(label='流程状态')
@@ -394,6 +400,7 @@ automated_process_instance_aggregate<
 >
 
 @name(label='任务实例', plural='task_instance_rows')
+@composite
 task_instance_row<
 
   @original(object='automated_task_instance', attribute='id')

@@ -1,0 +1,27 @@
+@calculate_charge({charge_plan: id!}, usage = 0.0):{calculated_charge}
+|:| charge_amount = 0.0
+|&| plan = {charge_plan}#(id = id)
+|&| rules = [charge_rule]#(plan = id)
+|*| row in rules
+|*|:| result = @is_match_rule(row)
+|*|?| result == 'MATCHED'
+|*|?|:| policy = {charge_policy}#(id = row.policy)!'没有找到对应的缴费策略'
+|*|?|?| policy.calc_model == 'FIXED'
+|*|?|?|:| charge_amount = policy.fixed_amount
+|*|?|?| policy.calc_model == 'PERCENTAGE'
+|*|?|?|:| charge_amount = policy.rate * policy.fixed_amount
+|*|?|?| policy.calc_model == 'HYBRID'
+|*|?|?|:| charge_amount = usage * 0.5
+|*|?|?| policy.calc_model == 'TIER_SLAB'
+|*|?|?|&| tiers = [charge_tier]#(policy = policy.id)
+|*|?|?|*| tier in tiers
+|*|?|?|*|?| tier.min_volume < usage and tier.max_volume > usage
+|*|?|?|*|?|:| charge_amount = (usage - tier.min_volume) * tier.rate + tier.fixed_amount
+|*|?|?| policy.calc_model == 'TIER_FULL'
+|*|?|?|&| tiers = [charge_tier]#(policy = policy.id)
+|*|?|?|*| tier in tiers
+|*|?|?|*|?| tier.min_volume < usage and tier.max_volume > usage
+|*|?|?|*|?|:| charge_amount = usage * tier.rate
+|:| calc_chg = {calculated_charge: charge_plan_id = plan.id}&plan
+|:| calc_chg.due_amount = charge_amount
+|.| calc_chg

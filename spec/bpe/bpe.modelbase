@@ -1,32 +1,45 @@
-@module(name='bpe', text='business policy engine')
+@module(name='bpe', text='business process engine')
 
-@persistence(name='tn_bpe_bizpoldef')
-@name(label='流程定义', plural='business_policy_definitions')
+// ==========================================
+// 一、流程定义域（Definition）
+// ==========================================
+
+@persistence(name='tn_bpe_bizprocdef')
+@name(label='流程定义', plural='business_process_definitions')
 @entity
 @revision
-business_policy_definition<
+business_process_definition<
 
   @name(label='标识')
-  @persistence(name='bizpoldefid')
+  @persistence(name='bizprocdefid')
   id!!: long,
 
-  @name(label='用户代码')
-  @persistence(name='bizpoldefcd')
+  @name(label='流程编码')
+  @persistence(name='bizprocdefcd')
   code!+: string(30),
 
   @name(label='流程名称')
-  @persistence(name='bizpoldefnm')
+  @persistence(name='bizprocdefnm')
   name!+: string(100),
 
   @name(label='版本号')
   @persistence(name='ver')
   version+: integer,
 
-  @name(label='生效开始日期')
+  @name(label='发布状态')
+  @persistence(name='sts')
+  status: enum[
+    DR:DRAFT('草稿'),
+    PB:PUBLISHED('已发布'),
+    SP:SUSPENDED('已挂起'),
+    AR:ARCHIVED('已归档')
+  ],
+
+  @name(label='生效开始时间')
   @persistence(name='effsttm')
   effective_start_time: datetime,
 
-  @name(label='生效开始日期')
+  @name(label='生效结束时间')
   @persistence(name='effndtm')
   effective_end_time: datetime,
 
@@ -51,60 +64,355 @@ business_policy_definition<
   last_modified_time: now,
 
   @name(label='节点列表', singular='node')
-  nodes: &business_policy_node(id)[]
+  nodes: &business_process_node(business_process_definition)[]
 >
 
-@persistence(name='tn_bpe_bizpolnd')
-@name(label='流程节点', singular='business_policy_node', plural='business_policy_nodes')
-business_policy_node<
+@persistence(name='tn_bpe_bizprocnd')
+@name(label='流程节点', singular='business_process_node', plural='business_process_nodes')
+business_process_node<
 
   @name(label='标识')
-  @persistence(name='bizpolndid')
+  @persistence(name='bizprocndid')
   id!!: long,
 
-  @name(label='流程')
-  @persistence(name='bizpoldefid')
-  business_policy_definition: &business_policy_definition(id),
+  @name(label='流程定义')
+  @persistence(name='bizprocdefid')
+  business_process_definition: &business_process_definition(id),
 
-  @name(label='名称')
-  @persistence(name='bizpolndnm')
+  @name(label='节点编码')
+  @persistence(name='bizprocndcd')
+  code!+: string(30),
+
+  @name(label='节点名称')
+  @persistence(name='bizprocndnm')
   name: string(100),
 
   @name(label='节点类型')
-  @persistence(name='bizpolndtyp')
+  @persistence(name='bizprocndtyp')
   type: enum[
-    ST:开始,
-    AT:执行,
-    DC:判断,
-    ND:结束
+    ST:START('开始事件'),
+    UT:USER_TASK('人工任务'),
+    SV:SERVICE_TASK('服务任务'),
+    EG:EXCLUSIVE_GATEWAY('排他网关'),
+    PG:PARALLEL_GATEWAY('并行网关'),
+    IG:INCLUSIVE_GATEWAY('包容网关'),
+    TM:TIMER('定时事件'),
+    ND:END('结束事件')
   ],
 
-  @name(label='计算表达式')
-  @persistence(name='expr')
-  expression: string(200),
+  // 例如: "role:finance_manager" 或 "${starter.leader}"
+  @name(label='办理人表达式')
+  @persistence(name='asgnexpr')
+  assignee_expression: string(200),
+
+  // 服务任务/回调/脚本执行表达式
+  @name(label='执行表达式')
+  @persistence(name='actexpr')
+  action_expression: string(500),
+
+  @name(label='关联表单标识')
+  @persistence(name='frmkey')
+  form_key: string(100),
+
+  @name(label='超时表达式')
+  @persistence(name='tmoutexpr')
+  timeout_expression: string(100),
 
   @name(label='流出连线', singular='transition')
-  transitions: &business_policy_transition(source)[]
+  transitions: &business_process_transition(source)[]
 >
 
-@persistence(name='tv_bpe_bizpoltrnsn')
-@name(label='流转连线', plural='business_policy_transitions')
+@persistence(name='tv_bpe_bizproctrnsn')
+@name(label='流转连线', plural='business_process_transitions')
 @value
-business_policy_transition<
+business_process_transition<
 
-  @persistence(name='bizpolndsrcid')
-  source!!: &business_policy_node(id),
+  @name(label='源节点')
+  @persistence(name='bizprocndsrcid')
+  source!!: &business_process_node(id),
 
-  @persistence(name='bizpolndtgtid')
-  target!!: &business_policy_node(id),
+  @name(label='目标节点')
+  @persistence(name='bizprocndtgtid')
+  target!!: &business_process_node(id),
 
-  // 核心：跳转条件表达式 (DSL)
-  // 例如: "context.amount > 10000 && context.risk_score < 60"
+  @name(label='连线名称')
+  @persistence(name='trnsnnm')
+  name: string(100),
+
+  // 例如: "vars.amount > 10000 && vars.department == 'FIN'"
   @name(label='条件表达式')
   @persistence(name='condexpr')
   condition_expression: string(500),
 
   @name(label='优先级')
   @persistence(name='prio')
-  priority: integer
+  priority: integer,
+
+  @name(label='是否默认分支')
+  @persistence(name='dfltflg')
+  is_default: enum[
+    Y:YES('是'),
+    N:NO('否')
+  ]
+>
+
+// ==========================================
+// 二、流程运行实例域（Runtime）
+// ==========================================
+
+@persistence(name='tn_bpe_bizprocinst')
+@name(label='流程实例', plural='business_process_instances')
+@entity
+@revision
+business_process_instance<
+
+  @name(label='标识')
+  @persistence(name='bizprocinstid')
+  id!!: long,
+
+  @name(label='流程定义')
+  @persistence(name='bizprocdefid')
+  business_process_definition: &business_process_definition(id),
+
+  @name(label='业务主键')
+  @persistence(name='bizkey')
+  business_key+: string(64),
+
+  // 支持嵌套子流程（Call Activity / Sub-Process）
+  @name(label='父流程实例')
+  @persistence(name='prntinstid')
+  parent_instance: &business_process_instance(id),
+
+  @name(label='实例状态')
+  @persistence(name='sts')
+  status: enum[
+    RN:RUNNING('运行中'),
+    SP:SUSPENDED('已挂起'),
+    CP:COMPLETED('已完成'),
+    TM:TERMINATED('已终止'),
+    ER:ERROR('异常')
+  ],
+
+  @name(label='发起人标识')
+  @persistence(name='strtid')
+  starter_id: long,
+
+  @name(label='开始时间')
+  @persistence(name='strttm')
+  started_time = now: datetime,
+
+  @name(label='结束时间')
+  @persistence(name='endtm')
+  ended_time: datetime,
+
+  @name(label='创建者标识')
+  @persistence(name='crtrid')
+  creator_id: long,
+
+  @name(label='创建时间')
+  @persistence(name='crttm')
+  created_time = now: datetime,
+
+  @name(label='修改者标识')
+  @persistence(name='modid')
+  modifier_id: long,
+
+  @name(label='最后修改时间')
+  @persistence(name='lmt')
+  last_modified_time: now,
+
+  @name(label='执行流列表', singular='execution')
+  executions: &business_process_execution(business_process_instance)[],
+
+  @name(label='流程变量列表', singular='variable')
+  variables: &business_process_variable(business_process_instance)[]
+>
+
+// 执行令牌（Token）：用于支持并行网关/包容网关的多分支并发推进与汇聚
+@persistence(name='tn_bpe_bizprocexec')
+@name(label='流程执行流', singular='business_process_execution', plural='business_process_executions')
+business_process_execution<
+
+  @name(label='标识')
+  @persistence(name='bizprocexecid')
+  id!!: long,
+
+  @name(label='流程实例')
+  @persistence(name='bizprocinstid')
+  business_process_instance: &business_process_instance(id),
+
+  @name(label='父执行流')
+  @persistence(name='prntexecid')
+  parent_execution: &business_process_execution(id),
+
+  @name(label='当前节点')
+  @persistence(name='currndid')
+  current_node: &business_process_node(id),
+
+  @name(label='执行状态')
+  @persistence(name='sts')
+  status: enum[
+    AC:ACTIVE('活跃'),
+    WT:WAITING('等待汇聚'),
+    FN:FINISHED('已结束')
+  ],
+
+  @name(label='进入节点时间')
+  @persistence(name='enttm')
+  entered_time = now: datetime
+>
+
+@persistence(name='tn_bpe_bizproctsk')
+@name(label='人工任务', plural='business_process_tasks')
+@entity
+@revision
+business_process_task<
+
+  @name(label='标识')
+  @persistence(name='bizproctskid')
+  id!!: long,
+
+  @name(label='流程实例')
+  @persistence(name='bizprocinstid')
+  business_process_instance: &business_process_instance(id),
+
+  @name(label='执行流')
+  @persistence(name='bizprocexecid')
+  execution: &business_process_execution(id),
+
+  @name(label='流程节点')
+  @persistence(name='bizprocndid')
+  node: &business_process_node(id),
+
+  @name(label='任务名称')
+  @persistence(name='tsknm')
+  name: string(100),
+
+  @name(label='办理人标识')
+  @persistence(name='asgnid')
+  assignee_id: long,
+
+  @name(label='候选表达式')
+  @persistence(name='candexpr')
+  candidate_expression: string(200),
+
+  @name(label='任务状态')
+  @persistence(name='sts')
+  status: enum[
+    PD:PENDING('待认领'),
+    IP:IN_PROGRESS('处理中'),
+    CP:COMPLETED('已完成'),
+    DL:DELEGATED('已委派'),
+    CN:CANCELLED('已取消')
+  ],
+
+  @name(label='优先级')
+  @persistence(name='prio')
+  priority: integer,
+
+  @name(label='截止时间')
+  @persistence(name='duetm')
+  due_time: datetime,
+
+  @name(label='认领时间')
+  @persistence(name='clmtm')
+  claimed_time: datetime,
+
+  @name(label='完成时间')
+  @persistence(name='cmptm')
+  completed_time: datetime,
+
+  @name(label='创建者标识')
+  @persistence(name='crtrid')
+  creator_id: long,
+
+  @name(label='创建时间')
+  @persistence(name='crttm')
+  created_time = now: datetime,
+
+  @name(label='修改者标识')
+  @persistence(name='modid')
+  modifier_id: long,
+
+  @name(label='最后修改时间')
+  @persistence(name='lmt')
+  last_modified_time: now
+>
+
+@persistence(name='tv_bpe_bizprocvar')
+@name(label='流程变量', plural='business_process_variables')
+@value
+business_process_variable<
+
+  @name(label='流程实例')
+  @persistence(name='bizprocinstid')
+  business_process_instance!!: &business_process_instance(id),
+
+  @name(label='变量名称')
+  @persistence(name='varnm')
+  name!!: string(64),
+
+  // 关联到特定执行流时为局部变量，否则为实例全局变量
+  @name(label='所属执行流')
+  @persistence(name='bizprocexecid')
+  execution: &business_process_execution(id),
+
+  @name(label='变量类型')
+  @persistence(name='vartyp')
+  value_type: enum[
+    ST:STRING('字符串'),
+    NM:NUMBER('数值'),
+    BL:BOOLEAN('布尔'),
+    DT:DATETIME('日期时间'),
+    JS:JSON('JSON对象')
+  ],
+
+  @name(label='变量值')
+  @persistence(name='varval')
+  value: string(2000)
+>
+
+@persistence(name='tn_bpe_bizprochist')
+@name(label='流转历史', plural='business_process_histories')
+business_process_history<
+
+  @name(label='标识')
+  @persistence(name='bizprochistid')
+  id!!: long,
+
+  @name(label='流程实例')
+  @persistence(name='bizprocinstid')
+  business_process_instance: &business_process_instance(id),
+
+  @name(label='流程节点')
+  @persistence(name='bizprocndid')
+  node: &business_process_node(id),
+
+  @name(label='关联任务')
+  @persistence(name='bizproctskid')
+  task: &business_process_task(id),
+
+  @name(label='操作人标识')
+  @persistence(name='oprid')
+  operator_id: long,
+
+  @name(label='操作动作')
+  @persistence(name='act')
+  action: enum[
+    ST:START('发起'),
+    AP:APPROVE('同意'),
+    RJ:REJECT('驳回'),
+    TR:TRANSFER('转办'),
+    DL:DELEGATE('委派'),
+    AT:AUTO('自动流转'),
+    TM:TERMINATE('终止')
+  ],
+
+  @name(label='审批意见')
+  @persistence(name='cmt')
+  comment: string(1000),
+
+  @name(label='操作时间')
+  @persistence(name='oprtm')
+  operated_time = now: datetime
 >

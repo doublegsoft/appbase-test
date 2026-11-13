@@ -1,0 +1,309 @@
+@module(name='cce', text='charge calculation engine')
+
+// ==========================================
+// 1. 计费方案实体（核心方案定义，版本契约）
+// ==========================================
+@entity
+@persistence(name='tn_cce_chgplan')
+@name(label='计费方案', plural='charge_plans')
+charge_plan<
+
+  @persistence(name='chgplanid')
+  @name(label='方案标识')
+  id!!: id,
+
+  @persistence(name='chgplancd')
+  @name(label='方案编码')
+  code!: string(32),
+
+  @persistence(name='chgplannm')
+  @name(label='方案名称')
+  name!: string(128),
+
+  @persistence(name='tnntid')
+  @name(label='租户标识')
+  tenant_id!: string(32),
+
+  @persistence(name='biztyp')
+  @name(label='业务类型')
+  business_type!: enum[
+    ACQ: 收单支付,
+    PAYOUT: 出款代付,
+    TRANSFER: 资金转账,
+    SETTLE: 结算清分,
+    USAGE: 用量计费,
+    RECURRING: 周期订阅
+  ],
+
+  @persistence(name='ver')
+  @name(label='版本号')
+  version!: int,
+
+  @persistence(name='effsttm')
+  @name(label='生效起始时间')
+  effective_start_time!: datetime,
+
+  @persistence(name='effndtm')
+  @name(label='生效结束时间')
+  effective_end_time!: datetime,
+
+  @persistence(name='status')
+  @name(label='状态')
+  status!: enum[
+    DRAFT: 草稿,
+    ACTIVE: 生效中,
+    SUSPENDED: 挂起,
+    EXPIRED: 已过期,
+    TERMINATED: 已终止
+  ],
+
+  @persistence(name='remark')
+  @name(label='备注说明')
+  remark: string(500),
+
+  @persistence(name='crttm')
+  @name(label='创建时间')
+  created_time = now: datetime,
+
+  @persistence(name='updtm')
+  @name(label='更新时间')
+  updated_time: now
+>
+
+// ==========================================
+// 2. 计费规则实体（路由网关与策略触发条件）
+// ==========================================
+@entity
+@persistence(name='tn_cce_chgrule')
+@name(label='计费规则', plural='charge_rules')
+charge_rule<
+
+  @persistence(name='chgruleid')
+  @name(label='规则标识')
+  id!!: long,
+
+  @persistence(name='chgplanid')
+  @name(label='所属方案')
+  plan!: &charge_plan(id),
+
+  @persistence(name='chgrulenm')
+  @name(label='规则名称')
+  name!: string(128),
+
+  @persistence(name='chnlcd')
+  @name(label='通道编码')
+  channel_code: string(32),
+
+  @persistence(name='paymthd')
+  @name(label='支付方式')
+  pay_method: enum[
+    ALL: 全渠道通用,
+    DEBIT_CARD: 借记卡,
+    CREDIT_CARD: 贷记卡,
+    QR_CODE: 条码扫码,
+    WALLET: 电子钱包,
+    BANK_TRANSFER: 网银互联
+  ],
+
+  @persistence(name='ccy')
+  @name(label='计费币种')
+  currency = 'CNY': string(3),
+
+  @persistence(name='mtexpr')
+  @name(label='条件匹配表达式')
+  match_expression: string(500),
+
+  @persistence(name='prio')
+  @name(label='执行优先级')
+  priority = 0: int,
+
+  @persistence(name='chgpolid')
+  @name(label='计费策略')
+  policy!: &charge_policy(id),
+
+  @persistence(name='crttm')
+  @name(label='创建时间')
+  created_time = now: datetime,
+
+  @persistence(name='updtm')
+  @name(label='更新时间')
+  updated_time: now
+>
+
+// ==========================================
+// 3. 计费策略实体（定价模型、费率及保底封顶）
+// ==========================================
+@entity
+@persistence(name='tn_cce_chgpol')
+@name(label='计费策略', plural='charge_policies')
+charge_policy<
+
+  @persistence(name='chgpolid')
+  @name(label='策略标识')
+  id!!: long,
+
+  @persistence(name='chgpolnm')
+  @name(label='策略名称')
+  name!: string(128),
+
+  @persistence(name='calcmod')
+  @name(label='计费模型')
+  calc_model!: enum[
+    FIXED: 固定额度计费,
+    PERCENTAGE: 纯比例费率,
+    HYBRID: 复合计费模式,
+    TIER_SLAB: 超额累进阶梯,
+    TIER_FULL: 全额跨阶累进
+  ],
+
+  @persistence(name='rate')
+  @name(label='基准费率百分比')
+  rate: number(8,4),
+
+  @persistence(name='fixamt')
+  @name(label='单笔固定金额')
+  fixed_amount: number(16,2),
+
+  @persistence(name='minamt')
+  @name(label='保底最低费用')
+  min_amount: number(16,2),
+
+  @persistence(name='maxamt')
+  @name(label='封顶最高费用')
+  max_amount: number(16,2),
+
+  @persistence(name='rndmod')
+  @name(label='舍入模式')
+  rounding_mode = 'HALF_UP': enum[
+    HALF_UP: 四舍五入,
+    DOWN: 向下截断,
+    UP: 向上进位
+  ],
+
+  @persistence(name='crttm')
+  @name(label='创建时间')
+  created_time = now: datetime,
+
+  @persistence(name='updtm')
+  @name(label='更新时间')
+  updated_time: now
+>
+
+// ==========================================
+// 4. 阶梯区间明细（复合主键值体，从属于策略）
+// ==========================================
+@persistence(name='tv_cce_chgtier')
+@name(label='阶梯区间明细', plural='charge_tiers')
+charge_tier<
+
+  @persistence(name='chgpolid')
+  @name(label='所属策略标识')
+  policy!!: &charge_policy(id),
+
+  @persistence(name='tierno')
+  @name(label='阶梯档位序号')
+  tier_no!!: int,
+
+  @persistence(name='minvol')
+  @name(label='阶梯下限金额')
+  min_volume!: number(16,2),
+
+  @persistence(name='maxvol')
+  @name(label='阶梯上限金额')
+  max_volume: number(16,2),
+
+  @persistence(name='rate')
+  @name(label='档位费率')
+  rate: number(8,4),
+
+  @persistence(name='fixamt')
+  @name(label='档位附加固定金额')
+  fixed_amount: number(16,2),
+
+  @persistence(name='minamt')
+  @name(label='档位保底金额')
+  min_amount: number(16,2),
+
+  @persistence(name='maxamt')
+  @name(label='档位封顶金额')
+  max_amount: number(16,2)
+>
+
+// ==========================================
+// 5. 计费分摊收益分配（复合主键值体，从属于规则）
+// ==========================================
+@persistence(name='tv_cce_chgshr')
+@name(label='费用分摊明细', plural='charge_shares')
+charge_share<
+
+  @persistence(name='chgruleid')
+  @name(label='所属规则标识')
+  rule!!: &charge_rule(id),
+
+  @persistence(name='targetid')
+  @name(label='分摊受益对象标识')
+  target_id!!: string(32),
+
+  @persistence(name='targettyp')
+  @name(label='受益对象类型')
+  target_type!: enum[
+    PLATFORM: 平台收益,
+    CHANNEL: 通道成本,
+    AGENT: 代理商分润,
+    PARTNER: 合作方返点
+  ],
+
+  @persistence(name='shrrato')
+  @name(label='分摊比例')
+  share_ratio: number(8,4),
+
+  @persistence(name='fixret')
+  @name(label='固定截留金额')
+  fixed_retain_amount: number(16,2)
+>
+
+// ==========================================
+// 6. 计费全景聚合根（Aggregate 视图与装配模型）
+// ==========================================
+@name(label='计费方案全景聚合', plural='charge_plan_aggregates')
+@aggregate
+charge_plan_aggregate<
+
+  @name(label='方案基础信息')
+  plan: &charge_plan(id),
+
+  @name(label='规则明细集合')
+  rules: &charge_rule(id)[],
+
+  @name(label='定价策略集合')
+  @conjunction(
+    source_object='charge_rule', source_attribute='policy',
+    target_object='charge_policy', target_attribute='id'
+  )
+  policies: &charge_policy(id)[],
+  
+  @conjunction(
+    source_object='charge_policy', source_attribute='id',
+    target_object='charge_tier', target_attribute='policy'
+  )
+  @name(label='阶梯配置集合')
+  tiers: &charge_tier(policy)[],
+
+  @name(label='分摊分润集合')
+  @conjunction(
+    source_object='charge_rule', source_attribute='id',
+    target_object='charge_share', target_attribute='rule'
+  )
+  shares: &charge_share(rule)[]
+>
+
+@name(label='计费费用结果', plural='calculated_charges')
+calculated_charge<
+  
+  @name(label='方案基础信息')
+  charge_plan_id: id,
+  
+  @name(label='应付金额')
+  due_amount: number(16,4)
+  
+>

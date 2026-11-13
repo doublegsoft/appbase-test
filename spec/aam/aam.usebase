@@ -1,0 +1,15 @@
+@instantiate_automated_process({automated_process: id!}, {automated_process_instance: business_type, business_id}):{automated_process_instance: id}
+|&| proc = {automated_process}#(id = id)
+|&| proc_trans = [automated_process_transition]#(process = id)
+|&| proc_tasks = [automated_process_task]#(process = id)
+|:| proc_inst = {automated_process_instance: status = '01',
+    business_id = business_id,
+    business_type = business_type}&proc
+|:| proce_task_insts = [{automated_task_instance:
+    process_instance = proc_inst.id}]&proc_tasks
+|:| proce_tran_insts = [{automated_transition_instance:
+    process_instance = proc_inst.id}]&proc_trans
+|+| proc_inst
+|+| proce_task_insts
+|+| proce_tran_insts
+|.| proc_inst

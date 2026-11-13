@@ -1,5 +1,7 @@
 export MODELBASE_DATA_ROOT=/Users/christian/export/local/works/doublegsoft.io/modelbase/03.Development/modelbase-data
 export MODELBASE_JAR=/Users/christian/export/opt/modelbase/protosys-plugin-modelbase-7.0-shaded.jar
+export USEBASE_DATA_ROOT=/Users/christian/export/local/works/doublegsoft.io/usebase/03.Development/usebase-data
+export USEBASE_JAR=/Users/christian/export/opt/usebase/protosys-plugin-usebase-1.0-shaded.jar
 export PROJBASE_DATA_ROOT=/Users/christian/export/local/works/doublegsoft.io/projbase/03.Development/projbase-data
 export PROJBASE_JAR=/Users/christian/export/opt/projbase/protosys-plugin-projbase-7.0-shaded.jar
 
@@ -9,6 +11,7 @@ export SPEC=aam
 export APPNAME=aam
 export NAMESPACE=biz.doublegsoft
 export MOBELBASE_MODEL=spec/$SPEC/$SPEC.modelbase
+export USEBASE_MODEL=spec/$SPEC/$SPEC.usebase
 export PROJECT_ROOT=$OUTPUT_ROOT/"$SPEC"-2.x
 ################################################################################
 ##                                                                            ##
@@ -45,6 +48,43 @@ java -jar $MODELBASE_JAR \
 \[\]\
 \} 2>&1
 done
+
+################################################################################
+##                                                                            ##
+##                                USEBASE (JAVA)                              ##
+##                                                                            ##
+################################################################################
+REPOS=("java-tx@spring-1.x" "java-mvc@spring-1.x" "java-dto@gfc-2.x")
+
+for repo in "${REPOS[@]}"
+do
+
+export TEMPLATE_ROOT=$USEBASE_DATA_ROOT/java/$repo
+
+java -jar $USEBASE_JAR \
+--modelbase=$MOBELBASE_MODEL \
+--usebase=$USEBASE_MODEL \
+--template-root=$TEMPLATE_ROOT \
+--output-root=$PROJECT_ROOT \
+--license=LICENSE \
+--globals=\
+\{\
+\"application\":\"$APPNAME\",\
+\"namespace\":\"$NAMESPACE\",\
+\"artifact\":\"$APPNAME\",\
+\"version\":\"1.0.0\",\
+\"description\":\"\",\
+\"naming\":\"com.doublegsoft.jcommons.programming.java.JavaConventions\",\
+\"globalNamingConvention\":\"com.doublegsoft.jcommons.programming.java.JavaNamingConvention\",\
+\"language\":\"java\",\
+\"imports\":\
+\[\],\
+\"dependencies\":\
+\[\]\
+\} 2>&1
+
+done
+
 
 ################################################################################
 ##                                                                            ##
