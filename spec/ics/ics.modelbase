@@ -1,0 +1,206 @@
+@module(name='ics', text='infrastructure core services')
+
+// ==========================================
+// 1. 分布式分段发号器（Leaf-Segment 模式）
+// 独立短事务更新 max_id，支持各业务模块按 biz_tag 隔离发号
+// ==========================================
+@entity
+@persistence(name='tn_ics_idseg')
+@name(label='分布式发号号段', singular='id_segment', plural='id_segments')
+id_segment<
+
+  @persistence(name='biztag')
+  @name(label='业务标识')
+  biz_tag!!: string(64),
+
+  @persistence(name='maxid')
+  @name(label='当前已分配最大ID')
+  max_id: long,
+  
+  @persistence(name='prsntid')
+  @name(label='当前已分配ID')
+  present_id: long,
+
+  @persistence(name='step')
+  @name(label='号段步长')
+  step: long,
+
+  @persistence(name='verno')
+  @name(label='乐观锁版本号')
+  version_no: long,
+
+  @persistence(name='remark')
+  @name(label='业务说明')
+  remark: string(200),
+
+  @persistence(name='createdat')
+  @name(label='创建时间')
+  created_at: datetime,
+
+  @persistence(name='updatedat')
+  @name(label='更新时间')
+  updated_at: datetime
+>
+
+// ==========================================
+// 2. 事务发件箱（Transactional Outbox 模式）
+// 与业务数据同事务落库，异步 Relay/CDC 投递 MQ，保证最终一致性
+// 建议索引：(evtsts, nexttryat), (aggtyp, aggid)
+// ==========================================
+@entity
+@persistence(name='tn_ics_obxevt')
+@name(label='事务发件箱事件', singular='outbox_event', plural='outbox_events')
+outbox_event<
+
+  @persistence(name='obxevtid')
+  @name(label='发件箱主键')
+  id!!: string(64),
+
+  @persistence(name='evtid')
+  @name(label='全局事件标识')
+  event_id: string(64),
+
+  @persistence(name='srcmod')
+  @name(label='来源模块')
+  source_module: string(16),
+
+  @persistence(name='aggtyp')
+  @name(label='聚合根类型')
+  @reference(name='aggregate', value='type')
+  aggregate_type: string(64),
+
+  @persistence(name='aggid')
+  @name(label='聚合根标识')
+    @reference(name='aggregate', value='id')
+  aggregate_id: string(64),
+
+  @persistence(name='evttyp')
+  @name(label='事件类型')
+  event_type: string(100),
+
+  @persistence(name='topic')
+  @name(label='目标消息主题')
+  topic: string(128),
+
+  @persistence(name='partkey')
+  @name(label='消息分区键')
+  partition_key: string(64),
+
+  @persistence(name='payload')
+  @name(label='事件负载JSON')
+  payload: string(4000),
+
+  @persistence(name='headers')
+  @name(label='上下文头信息JSON')
+  headers: string(1000),
+
+  @persistence(name='evtsts')
+  @name(label='投递状态')
+  status: enum[
+    PD:PENDING('待投递'),
+    ST:SENT('已投递'),
+    FL:FAILED('重试失败'),
+    DL:DEAD_LETTER('死信挂起')
+  ],
+
+  @persistence(name='retrycnt')
+  @name(label='已重试次数')
+  retry_count: long,
+
+  @persistence(name='nexttryat')
+  @name(label='下次重试时间')
+  next_retry_at: datetime,
+
+  @persistence(name='lasterr')
+  @name(label='最后一次异常信息')
+  last_error: string(1000),
+
+  @persistence(name='sentat')
+  @name(label='投递成功时间')
+  sent_at: datetime,
+
+  @persistence(name='createdat')
+  @name(label='创建时间')
+  created_at: datetime
+>
+
+// ==========================================
+// 3. 幂等防重记录（Idempotency 模式）
+// 联合主键保证同一业务下相同幂等键并发请求只执行一次
+// 建议索引：(expireat) 用于定期清理过期记录
+// ==========================================
+@entity
+@persistence(name='tn_ics_idemp')
+@name(label='幂等防重记录', singular='idempotency_record', plural='idempotency_records')
+idempotency_record<
+
+  @persistence(name='biztyp')
+  @name(label='业务场景类型')
+  biz_type!!: string(64),
+
+  @persistence(name='idempkey')
+  @name(label='请求幂等键')
+  idempotency_key!!: string(128),
+
+  @persistence(name='reqhash')
+  @name(label='请求参数摘要')
+  request_hash: string(64),
+
+  @persistence(name='idempsts')
+  @name(label='处理状态')
+  status: enum[
+    PR:PROCESSING('处理中'),
+    SC:SUCCEEDED('处理成功'),
+    FL:FAILED('处理失败')
+  ],
+
+  @persistence(name='respsnap')
+  @name(label='响应结果快照JSON')
+  response_snapshot: string(4000),
+
+  @persistence(name='expireat')
+  @name(label='幂等过期时间')
+  expire_at: datetime,
+
+  @persistence(name='createdat')
+  @name(label='创建时间')
+  created_at: datetime,
+
+  @persistence(name='updatedat')
+  @name(label='更新时间')
+  updated_at: datetime
+>
+
+// ==========================================
+// 4. 数据库分布式互斥锁（带栅栏令牌 Fence Token）
+// 用于低频强一致任务互斥（如月结出账、日终对账、发件箱调度抢占）
+// ==========================================
+@entity
+@persistence(name='tn_ics_lock')
+@name(label='分布式互斥锁', singular='distributed_lock', plural='distributed_locks')
+distributed_lock<
+
+  @persistence(name='lockkey')
+  @name(label='锁资源标识')
+  lock_key!!: string(128),
+
+  @persistence(name='ownernode')
+  @name(label='持锁节点标识')
+  owner_node: string(128),
+
+  @persistence(name='fencetok')
+  @name(label='单调递增栅栏令牌')
+  fence_token: long,
+
+  @persistence(name='expireat')
+  @name(label='锁租约过期时间')
+  expire_at: datetime,
+
+  @persistence(name='acquiredat')
+  @name(label='加锁时间')
+  acquired_at: datetime,
+
+  @persistence(name='updatedat')
+  @name(label='续约/更新时间')
+  updated_at: datetime
+>

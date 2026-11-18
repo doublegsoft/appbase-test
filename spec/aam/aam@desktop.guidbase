@@ -1,0 +1,339 @@
+// ============================================================================
+// 模块：aam (Automation Administration Management - 自动化流程管理)
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. 设计态：流程定义列表页
+// ----------------------------------------------------------------------------
+aam/process_list_page:page(module: "aam", title: "流程定义管理")<
+  process_criteria:criteria_form(title: "流程查询", data: "automated_process", variable: "{process_criteria}", cols: "4")<
+    code:text(title: "流程编码", placeholder: "请输入流程编码"),
+    name:text(title: "流程名称", placeholder: "请输入流程名称"),
+    status:select(title: "流程状态", data: "enum[01:ACTIVE('启用'),02:INACTIVE('停用')]"),
+    trigger_type:select(title: "触发类型", data: "enum[MN:MANUAL('手动触发'),EV:EVENT('事件触发'),SC:SCHEDULE('定时调度')]"),
+    process_toolbar:buttons<
+      btn_search:button(title: "查询", action: "@process_table.search"),
+      btn_reset:button(title: "重置", action: "@process_criteria.reset"),
+      btn_add:button(title: "新建流程", action: "#aam/process_edit_page")
+    >
+  >,
+
+  process_table:paged_table(title: "流程定义列表", data: "automated_process?{process_criteria}")<
+    code:text(title: "流程编码"),
+    name:text(title: "流程名称"),
+    version:number(title: "流程版本"),
+    status:select(title: "流程状态", data: "enum[01:ACTIVE('启用'),02:INACTIVE('停用')]"),
+    trigger_type:select(title: "触发类型", data: "enum[MN:MANUAL('手动触发'),EV:EVENT('事件触发'),SC:SCHEDULE('定时调度')]"),
+    created_at:date(title: "创建时间"),
+    row_actions:buttons(title: "操作", width: "220")<
+      btn_detail:button(title: "编排详情", action: "@aam/process_detail_page?id"),
+      btn_edit:button(title: "编辑", action: "#aam/process_edit_page?id"),
+      btn_delete:button(title: "删除", action: "@process_table.delete")
+    >
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 1.1 独立页面（弹窗渲染）：流程定义维护
+// ----------------------------------------------------------------------------
+aam/process_edit_page:page(module: "aam", title: "流程定义维护", data: "automated_process?id")<
+  process_entry:entry_form(title: "流程基本信息", data: "automated_process", cols: "2")<
+    code:text(title: "流程编码", required: "true", placeholder: "唯一流程编码", group:"基本信息"),
+    name:text(title: "流程名称", required: "true", group:"基本信息"),
+    version:number(title: "流程版本", required: "true", group:"基本信息"),
+    status:select(title: "流程状态", required: "true", group:"基本信息", data: "enum[01:ACTIVE('启用'),02:INACTIVE('停用')]"),
+    trigger_type:select(title: "触发类型", required: "true", group:"基本信息", data: "enum[MN:MANUAL('手动触发'),EV:EVENT('事件触发'),SC:SCHEDULE('定时调度')]"),
+    description:longtext(title: "描述", span: "2", group:"基本信息")
+  >,
+  process_bpmn:bpmn(title:"流程图"),
+  dialog_buttons:buttons<
+    btn_save:button(title: "保存", action: "@process_entry.save"),
+    btn_close:button(title: "取消", action: "@self.close")
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 2. 设计态：流程定义详情与编排页
+// ----------------------------------------------------------------------------
+aam/process_detail_page:page(module: "aam", title: "流程定义编排详情", data: "automated_process?id")<
+
+  process_info:display_form(title: "流程定义概览", data: "automated_process", cols: "3")<
+    code:text(title: "流程编码"),
+    name:text(title: "流程名称"),
+    version:number(title: "流程版本"),
+    status:select(title: "流程状态", data: "enum[01:ACTIVE('启用'),02:INACTIVE('停用')]"),
+    trigger_type:select(title: "触发类型", data: "enum[MN:MANUAL('手动触发'),EV:EVENT('事件触发'),SC:SCHEDULE('定时调度')]"),
+    created_at:date(title: "创建时间"),
+    description:longtext(title: "描述", span: "3")
+  >,
+
+  process_design_tabs:tabs(title: "流程结构配置")<
+    task_tab:tab(title: "流程任务定义")<
+      task_toolbar:buttons<
+        btn_add_task:button(title: "新增任务节点", action: "#aam/task_edit_page")
+      >,
+      task_table:paged_table(title: "任务节点集合", data: "automated_process_task?{id}")<
+        code:text(title: "任务编码"),
+        name:text(title: "任务名称"),
+        type:select(title: "任务类型", data: "enum[ST:START('开始'),AC:AUTO_TASK('自动任务'),HU:HUMAN_TASK('人工任务'),DC:DECISION('条件分支'),FK:FORK('并行分支'),JN:JOIN('并行聚合'),TM:TIMER('定时器/等待'),SB:SUB_PROCESS('嵌套子流程'),EN:END('结束')]"),
+        action_type:select(title: "动作类型", data: "enum[01:API('接口调用'),02:SQL('数据库操作'),03:SCRIPT('脚本执行'),04:CALL_PROCESS('调用子流程')]"),
+        assignee_type:select(title: "办理人类型", data: "enum[UR:USER('指定用户'),RL:ROLE('指定角色'),DP:DEPT_LEADER('部门主管'),EX:EXPRESSION('动态表达式')]"),
+        timeout_seconds:number(title: "超时时间", unit: "秒"),
+        task_actions:buttons(title: "操作", width: "200")<
+          btn_task_view:button(title: "详情", action: "%aam/task_detail_page?id"),
+          btn_task_edit:button(title: "编辑", action: "#aam/task_edit_page?id"),
+          btn_task_del:button(title: "删除", action: "@task_table.delete")
+        >
+      >
+    >,
+
+    transition_tab:tab(title: "任务流转连线")<
+      transition_toolbar:buttons<
+        btn_add_trans:button(title: "新增流转连线", action: "#aam/transition_edit_page")
+      >,
+      transition_table:paged_table(title: "流转连线集合", data: "automated_process_transition?{id}")<
+        source:text(title: "源任务"),
+        target:text(title: "目标任务"),
+        condition:longtext(title: "流转条件(EL表达式)"),
+        priority:number(title: "流转优先级"),
+        trans_actions:buttons(title: "操作", width: "160")<
+          btn_trans_edit:button(title: "编辑", action: "#aam/transition_edit_page"),
+          btn_trans_del:button(title: "删除", action: "@transition_table.delete")
+        >
+      >
+    >
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 2.1 独立页面（抽屉渲染）：任务节点只读详情与流出连线
+// ----------------------------------------------------------------------------
+aam/task_detail_page:page(module: "aam", title: "任务节点详情", data: "automated_process_task?id")<
+  task_display:display_form(title: "节点参数", data: "automated_process_task", cols: "2")<
+    code:text(title: "任务编码", group: "基础信息"),
+    name:text(title: "任务名称", group: "基础信息"),
+    type:select(title: "任务类型", group: "基础信息", data: "enum[ST:START('开始'),AC:AUTO_TASK('自动任务'),HU:HUMAN_TASK('人工任务'),DC:DECISION('条件分支'),FK:FORK('并行分支'),JN:JOIN('并行聚合'),TM:TIMER('定时器/等待'),SB:SUB_PROCESS('嵌套子流程'),EN:END('结束')]"),
+    timeout_seconds:number(title: "超时时间", unit: "秒", group: "基础信息"),
+
+    action_type:select(title: "动作类型", group: "自动化配置", data: "enum[01:API('接口调用'),02:SQL('数据库操作'),03:SCRIPT('脚本执行'),04:CALL_PROCESS('调用子流程')]"),
+    executor:longtext(title: "执行目标", span: "2", group: "自动化配置"),
+    retry_policy:longtext(title: "重试策略(JSON)", span: "2", group: "自动化配置"),
+
+    assignee_type:select(title: "办理人类型", group: "人工与表单", data: "enum[UR:USER('指定用户'),RL:ROLE('指定角色'),DP:DEPT_LEADER('部门主管'),EX:EXPRESSION('动态表达式')]"),
+    assignee_expression:text(title: "办理人规则表达式", group: "人工与表单"),
+    form_key:text(title: "挂载前端表单Key", span: "2", group: "人工与表单"),
+
+    expression:longtext(title: "条件/定时表达式", span: "2", group: "通用流转")
+  >,
+  outgoing_transitions:paged_table(title: "任务流出连线", data: "automated_process_transition?{id}", viewport: "drawer")<
+    target:text(title: "目标任务"),
+    condition:longtext(title: "流转条件(EL表达式)"),
+    priority:number(title: "流转优先级")
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 2.2 独立页面（弹窗渲染）：任务节点配置
+// ----------------------------------------------------------------------------
+aam/task_edit_page:page(module: "aam", title: "任务节点配置", data: "automated_process_task?id")<
+  task_entry:entry_form(title: "任务配置表单", data: "automated_process_task", cols: "2")<
+    code:text(title: "任务编码", required: "true", group: "基础配置"),
+    name:text(title: "任务名称", required: "true", group: "基础配置"),
+    type:select(title: "任务类型", required: "true", group: "基础配置", data: "enum[ST:START('开始'),AC:AUTO_TASK('自动任务'),HU:HUMAN_TASK('人工任务'),DC:DECISION('条件分支'),FK:FORK('并行分支'),JN:JOIN('并行聚合'),TM:TIMER('定时器/等待'),SB:SUB_PROCESS('嵌套子流程'),EN:END('结束')]"),
+    timeout_seconds:number(title: "超时时间", unit: "秒", group: "基础配置"),
+
+    action_type:select(title: "动作类型", group: "自动化任务配置", data: "enum[01:API('接口调用'),02:SQL('数据库操作'),03:SCRIPT('脚本执行'),04:CALL_PROCESS('调用子流程')]"),
+    executor:longtext(title: "执行目标(类名/URL/脚本内容)", span: "2", group: "自动化任务配置"),
+    retry_policy:longtext(title: "重试策略(JSON)", span: "2", group: "自动化任务配置"),
+
+    assignee_type:select(title: "办理人类型", group: "人工任务与表单配置", data: "enum[UR:USER('指定用户'),RL:ROLE('指定角色'),DP:DEPT_LEADER('部门主管'),EX:EXPRESSION('动态表达式')]"),
+    assignee_expression:text(title: "办理人规则表达式", group: "人工任务与表单配置"),
+    form_key:text(title: "挂载前端表单Key", span: "2", group: "人工任务与表单配置"),
+
+    expression:longtext(title: "条件/定时表达式", span: "2", group: "通用流转配置")
+  >,
+  task_dialog_buttons:buttons<
+    btn_task_save:button(title: "保存", action: "@task_entry.save"),
+    btn_task_close:button(title: "取消", action: "@aam/task_edit_page.close")
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 3. 运行态：流程实例监控列表页
+// ----------------------------------------------------------------------------
+aam/instance_list_page:page(module: "aam", title: "流程实例监控")<
+
+  instance_criteria:criteria_form(title: "实例筛选", data: "automated_process_instance", variable: "{instance_criteria}", cols: "4")<
+    automated_process:select(title: "流程定义", data: ""),
+    business_type:text(title: "业务单据类型", placeholder: "如 ORDER / BILL"),
+    status:select(title: "流程状态", data: "enum[01:RUNNING('运行中'),02:SUSPENDED('挂起'),03:COMPLETED('已完成'),04:FAILED('执行失败'),05:TERMINATED('手动终止')]"),
+    started_by:text(title: "启动人"),
+    instance_toolbar:buttons<
+      btn_inst_search:button(title: "查询", action: "@instance_table.search"),
+      btn_inst_reset:button(title: "重置", action: "@instance_criteria.reset")
+    >
+  >,
+  instance_table:paged_table(title: "流程实例列表", data: "automated_process_instance?{instance_criteria}")<
+    automated_process:text(title: "流程定义"),
+    business_type:text(title: "业务单据类型"),
+    business_id:text(title: "业务单据标识"),
+    status:select(title: "流程状态", data: "enum[01:RUNNING('运行中'),02:SUSPENDED('挂起'),03:COMPLETED('已完成'),04:FAILED('执行失败'),05:TERMINATED('手动终止')]"),
+    started_by:text(title: "启动人"),
+    started_time:date(title: "启动时间"),
+    end_time:date(title: "结束时间"),
+    inst_actions:buttons(title: "操作", width: "140")<
+      btn_inst_detail:button(title: "运行跟踪", action: "@aam/instance_detail_page?id")
+    >
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 4. 运行态：流程实例跟踪详情页 (任务轨迹 + 流转评估 + 流程变量)
+// ----------------------------------------------------------------------------
+aam/instance_detail_page:page(module: "aam", title: "流程实例运行详情", data: "automated_process_instance?id")<
+  instance_info:display_form(title: "实例基本信息", data: "automated_process_instance", cols: "3")<
+    automated_process:text(title: "流程定义"),
+    business_type:text(title: "业务单据类型"),
+    business_id:text(title: "业务单据标识"),
+    status:select(title: "流程状态", data: "enum[01:RUNNING('运行中'),02:SUSPENDED('挂起'),03:COMPLETED('已完成'),04:FAILED('执行失败'),05:TERMINATED('手动终止')]"),
+    started_by:text(title: "启动人"),
+    started_time:date(title: "启动时间"),
+    end_time:date(title: "结束时间")
+  >,
+  instance_tabs:tabs(title: "运行态跟踪视图")<
+    bpmn_tab:tab(title: "流程图示")<
+      process_bpmn:bpmn(title:"流程图")
+    >,
+    // 使用 Modelbase 中的复合视图 task_instance_row + 冻结前2列
+    task_inst_tab:tab(title: "任务执行轨迹")<
+      task_inst_table:fixed_table(title: "任务轨迹宽表", data: "task_instance_row?{id}", cols: "3", frozen: "2")<
+        code:text(title: "任务编码", fixed: "left"),
+        name:text(title: "任务名称", fixed: "left"),
+        status:select(title: "任务状态", data: "enum[01:PENDING('待处理/待认领'),02:RUNNING('执行中'),03:COMPLETED('已完成'),04:REJECTED('已驳回/拒绝'),05:FAILED('执行异常'),06:SKIPPED('已跳过')]"),
+        assignee:text(title: "实际办理人"),
+        action:select(title: "处理动作", data: "enum[AG:AGREE('同意'),RJ:REJECT('驳回'),TR:TRANSFER('转办'),AT:AUTO_FINISH('自动完成')]"),
+        retry_count:number(title: "重试次数", unit: "次"),
+        started_time:date(title: "开始时间"),
+        end_time:date(title: "完成时间"),
+        comment:longtext(title: "审批意见/执行日志"),
+        task_inst_ops:buttons(title: "操作", width: "120")<
+          btn_view_task_inst:button(title: "详情", action: "%aam/task_inst_detail_page?automated_task_instance_id")
+        >
+      >
+    >,
+    trans_inst_tab:tab(title: "流转评估历史")<
+      trans_inst_table:paged_table(title: "分支与网关流转记录", data: "automated_transition_instance?{id}")<
+        source_task:text(title: "源节点"),
+        target_task:text(title: "目标节点"),
+        status:select(title: "判定状态", data: "enum[01:PASSED('通过/激活'),02:IGNORED('未满足/跳过'),03:FAILED('表达式求值异常')]"),
+        condition_expression:longtext(title: "求值快照表达式"),
+        evaluation_context:longtext(title: "求值参数上下文(JSON)"),
+        transition_time:date(title: "流转触发时间")
+      >
+    >,
+    var_tab:tab(title: "流程上下文变量")<
+      var_toolbar:buttons<
+        btn_add_var:button(title: "新增变量", action: "#aam/var_edit_page")
+      >,
+      var_table:paged_table(title: "运行态变量列表", data: "automated_process_variable?{id}")<
+        name:text(title: "变量名称"),
+        type:select(title: "变量类型", data: "enum[ST:STRING('字符串'),NR:NUMBER('数字'),BL:BOOLEAN('布尔'),JS:JSON('JSON对象'),DT:DATETIME('日期时间')]"),
+        value:longtext(title: "变量值"),
+        var_actions:buttons(title: "操作", width: "160")<
+          btn_edit_var:button(title: "修改", action: "#aam/var_edit_page?id"),
+          btn_del_var:button(title: "删除", action: "@var_table.delete")
+        >
+      >
+    >
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 4.1 独立页面（抽屉渲染）：任务执行实例详情 (含快照与执行日志)
+// ----------------------------------------------------------------------------
+aam/task_inst_detail_page:page(module: "aam", title: "任务执行实例详情", data: "automated_task_instance?id")<
+  task_inst_display:display_form(title: "执行审计详情", data: "automated_task_instance", cols: "2")<
+    id:hidden,
+    process_instance:text(title: "所属流程实例", group: "关联上下文"),
+    task:text(title: "对应流程任务", group: "关联上下文"),
+    status:select(title: "任务状态", group: "执行状态", data: "enum[01:PENDING('待处理/待认领'),02:RUNNING('执行中'),03:COMPLETED('已完成'),04:REJECTED('已驳回/拒绝'),05:FAILED('执行异常'),06:SKIPPED('已跳过')]"),
+    action:select(title: "处理动作", group: "执行状态", data: "enum[AG:AGREE('同意'),RJ:REJECT('驳回'),TR:TRANSFER('转办'),AT:AUTO_FINISH('自动完成')]"),
+    assignee:text(title: "实际办理人/执行人", group: "执行状态"),
+    retry_count:number(title: "重试次数", unit: "次", group: "执行状态"),
+    started_time:date(title: "开始时间", group: "时间线"),
+    end_time:date(title: "完成时间", group: "时间线"),
+    comment:longtext(title: "审批意见/执行日志", span: "2", group: "日志与意见")
+  >,
+  process_bpmn:bpmn(title:"流程图"),
+  process_gantt:gantt(title:"流程图")
+>
+
+// ----------------------------------------------------------------------------
+// 4.2 独立页面（弹窗渲染）：流程变量维护
+// ----------------------------------------------------------------------------
+aam/var_edit_page:page(module: "aam", title: "流程变量维护", data: "automated_process_variable?id")<
+  var_entry:entry_form(title: "变量信息", data: "automated_process_variable", cols: "2")<
+    automated_process_instance:hidden,
+    name:text(title: "变量名称", required: "true"),
+    type:select(title: "变量类型", required: "true", data: "enum[ST:STRING('字符串'),NR:NUMBER('数字'),BL:BOOLEAN('布尔'),JS:JSON('JSON对象'),DT:DATETIME('日期时间')]"),
+    value:longtext(title: "变量值", required: "true", span: "2")
+  >,
+  var_dialog_buttons:buttons<
+    btn_var_save:button(title: "保存", action: "@var_entry.save"),
+    btn_var_close:button(title: "取消", action: "@aam/var_edit_page.close")
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 5. 运行态：任务待办与人工处理工作台
+// ----------------------------------------------------------------------------
+aam/task_todo_page:page(module: "aam", title: "任务待办与审计")<
+
+  todo_segs:segments(title: "任务状态快速筛选", placement: "top")<
+    seg_all:text(title: "全部"),
+    seg_pending:text(title: "待处理/待认领"),
+    seg_running:text(title: "执行中"),
+    seg_completed:text(title: "已完成"),
+    seg_failed:text(title: "执行异常")
+  >,
+
+  todo_criteria:criteria_form(title: "任务查询", data: "task_instance_row", variable: "{todo_criteria}", cols: "4")<
+    code:text(title: "任务编码"),
+    name:text(title: "任务名称"),
+    assignee:text(title: "办理人"),
+    status:select(title: "任务状态", data: "enum[01:PENDING('待处理/待认领'),02:RUNNING('执行中'),03:COMPLETED('已完成'),04:REJECTED('已驳回/拒绝'),05:FAILED('执行异常'),06:SKIPPED('已跳过')]"),
+    todo_toolbar:buttons<
+      btn_todo_search:button(title: "查询", action: "@todo_table.search"),
+      btn_todo_reset:button(title: "重置", action: "@todo_criteria.reset")
+    >
+  >,
+
+  todo_table:paged_table(title: "任务实例列表", data: "task_instance_row?{todo_criteria}")<
+    code:text(title: "任务编码"),
+    name:text(title: "任务名称"),
+    status:select(title: "任务状态", data: "enum[01:PENDING('待处理/待认领'),02:RUNNING('执行中'),03:COMPLETED('已完成'),04:REJECTED('已驳回/拒绝'),05:FAILED('执行异常'),06:SKIPPED('已跳过')]"),
+    assignee:text(title: "办理人"),
+    action:select(title: "处理动作", data: "enum[AG:AGREE('同意'),RJ:REJECT('驳回'),TR:TRANSFER('转办'),AT:AUTO_FINISH('自动完成')]"),
+    started_time:date(title: "开始时间"),
+    todo_actions:buttons(title: "操作", width: "220")<
+      btn_handle:button(title: "办理", action: "#aam/task_handle_page?automated_task_instance_id"),
+      btn_view_inst:button(title: "所属实例", action: "@aam/instance_detail_page?process_instance_id"),
+      btn_view_detail:button(title: "审计详情", action: "%aam/task_inst_detail_page?automated_task_instance_id")
+    >
+  >
+>
+
+// ----------------------------------------------------------------------------
+// 5.1 独立页面（弹窗渲染）：人工任务办理
+// ----------------------------------------------------------------------------
+aam/task_handle_page:page(module: "aam", title: "人工任务办理", data: "automated_task_instance?id")<
+  task_handle_entry:entry_form(title: "审批/处理信息", data: "automated_task_instance", cols: "2")<
+    action:select(title: "处理动作", required: "true", data: "enum[AG:AGREE('同意'),RJ:REJECT('驳回'),TR:TRANSFER('转办'),AT:AUTO_FINISH('自动完成')]"),
+    assignee:text(title: "办理人/转办目标人"),
+    comment:longtext(title: "审批意见/处理说明", required: "true", span: "2")
+  >,
+  handle_buttons:buttons<
+    btn_submit_handle:button(title: "提交处理", action: "@task_handle_entry.save"),
+    btn_cancel_handle:button(title: "取消", action: "@aam/task_handle_page.close")
+  >
+>

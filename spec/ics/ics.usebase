@@ -1,0 +1,10 @@
+@get_id({id_segment: biz_tag!}):{id_segment: present_id}
+|&| idseg = {id_segment}#(biz_tag = biz_tag)!'没有找到对应的ID分段'
+|:| id = idseg.present_id
+|?| idseg.max_id <= id
+|?|:| id = idseg.max_id + idseg.step
+|?| idseg.max_id > id
+|?|:| id = id + 1
+|=| {id_segment: present_id = id}#(biz_tag = biz_tag)
+|:| idseg.present_id = id
+|.| idseg

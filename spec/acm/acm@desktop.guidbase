@@ -1,187 +1,225 @@
 // ============================================================================
+// 模块：acm (Access Control Management - 访问控制管理系统)
+// ============================================================================
+
+// ----------------------------------------------------------------------------
 // 1. 系统主页与导航
-// ============================================================================
-
-acm/dashboard:page(title:"访问控制管理系统 (ACM)", main:"true")<
-  modules:button_navigator(title:"系统功能模块")<
-    btn_dept:button(title:"部门机构管理", action:"@acm/dept_list_page"),
-    btn_role:button(title:"角色权限管理", action:"@acm/role_list_page"),
-    btn_perm:button(title:"功能权限管理", action:"@acm/perm_list_page"),
-    btn_user_role:button(title:"用户角色授权", action:"@acm/user_role_list_page")
+// ----------------------------------------------------------------------------
+acm/dashboard:page(module: "acm", title: "访问控制管理系统 (ACM)", main: "true")<
+  modules:button_navigator(title: "系统功能模块")<
+    btn_dept:button(title: "部门机构管理", action: "@acm/dept_list_page"),
+    btn_role:button(title: "角色权限管理", action: "@acm/role_list_page"),
+    btn_perm:button(title: "功能权限管理", action: "@acm/perm_list_page"),
+    btn_user_role:button(title: "用户角色授权", action: "@acm/user_role_list_page")
   >
 >
 
-// ============================================================================
+// ----------------------------------------------------------------------------
 // 2. 部门管理模块 (Department)
-// ============================================================================
+// ----------------------------------------------------------------------------
+acm/dept_list_page:page(module: "acm", title: "部门管理")<
 
-acm/dept_list_page:page(title:"部门管理")<
-  dept_criteria:criteria_form(object:"department")<
-    name:text(title:"部门名称", placeholder:"搜索部门名称"),
-    type:select(title:"部门类型", data:"enum[GRP:GROUP('集团'),CMP:COMPANY('公司'),DIV:DIVISION('事业部'),DEP:DEPARTMENT('具体部门'),TEM:TEAM('临时项目组')]"),
-    criteria_search:button(action:"@dept_table.search", title:"搜索"),
-    criteria_reset:button(action:"@dept_criteria.reset", title:"重置")
+  dept_criteria:criteria_form(title: "部门查询", data: "department", variable: "{dept_criteria}", cols: "2")<
+    name:text(title: "部门名称", placeholder: "搜索部门名称"),
+    type:select(title: "部门类型", data: "enum[GRP:GROUP('集团'),CMP:COMPANY('公司'),DIV:DIVISION('事业部'),DEP:DEPARTMENT('具体部门'),TEM:TEAM('临时项目组')]")
   >,
-  dept_table:paged_table(data:"department", cols:"3")<
+
+  dept_toolbar:buttons<
+    criteria_search:button(title: "搜索", action: "@dept_table.search"),
+    criteria_reset:button(title: "重置", action: "@dept_criteria.reset"),
+    btn_add_dept:button(title: "新建部门", action: "#acm/dept_form_page")
+  >,
+
+  dept_table:paged_table(title: "部门列表", data: "department?{dept_criteria}")<
     id:hidden,
-    name:text(title:"部门名称"),
-    type:select(title:"部门类型"),
-    sort:number(title:"排序值"),
-    created_time:date(title:"创建时间"),
-    buttons(title:"操作", width:"180")<
-      edit_dept:button(action:"@acm/dept_form_page?id", title:"编辑"),
-      delete_dept:button(action:"@dept_table.delete", title:"删除")
+    name:text(title: "部门名称"),
+    type:select(title: "部门类型", data: "enum[GRP:GROUP('集团'),CMP:COMPANY('公司'),DIV:DIVISION('事业部'),DEP:DEPARTMENT('具体部门'),TEM:TEAM('临时项目组')]"),
+    sort:number(title: "排序值"),
+    created_time:date(title: "创建时间"),
+    dept_actions:buttons(title: "操作", width: "180")<
+      edit_dept:button(title: "编辑", action: "#acm/dept_form_page?id"),
+      delete_dept:button(title: "删除", action: "@dept_table.delete")
     >
   >
 >
 
-acm/dept_form_page:page(title:"编辑部门")<
-  dept_entry:entry_form(title:"部门信息", data:"department?department_id")<
+acm/dept_form_page:page(module: "acm", title: "编辑部门", data: "department?id")<
+  dept_entry:entry_form(title: "部门信息", data: "department", cols: "2")<
     id:hidden,
-    name:text(title:"部门名称", required:"true"),
-    parent_id:number(title:"父部门ID"),
-    type:select(title:"部门类型", required:"true", data:"enum[GRP:GROUP('集团'),CMP:COMPANY('公司'),DIV:DIVISION('事业部'),DEP:DEPARTMENT('具体部门'),TEM:TEAM('临时项目组')]"),
-    leader_user_id:number(title:"部门负责人ID"),
-    sort:number(title:"排序值"),
-    ancestors:text(title:"祖先节点路径", span:"2")
+    name:text(title: "部门名称", required: "true"),
+    parent_id:number(title: "父部门ID"),
+    type:select(title: "部门类型", required: "true", data: "enum[GRP:GROUP('集团'),CMP:COMPANY('公司'),DIV:DIVISION('事业部'),DEP:DEPARTMENT('具体部门'),TEM:TEAM('临时项目组')]"),
+    leader_user_id:number(title: "部门负责人ID"),
+    sort:number(title: "排序值"),
+    ancestors:text(title: "祖先节点路径", span: "2")
   >,
-  buttons<
-    save_dept:button(action:"@dept_entry.save", title:"保存"),
-    close_dept:button(action:"@acm/dept_form_page.close", title:"关闭")
+  dept_form_buttons:buttons<
+    save_dept:button(title: "保存", action: "@dept_entry.save"),
+    close_dept:button(title: "关闭", action: "@acm/dept_form_page.close")
   >
 >
 
-// ============================================================================
+// ----------------------------------------------------------------------------
 // 3. 角色与权限规则模块 (Role & Data Rule)
-// ============================================================================
+// ----------------------------------------------------------------------------
+acm/role_list_page:page(module: "acm", title: "角色管理")<
 
-acm/role_list_page:page(title:"角色管理")<
-  role_criteria:criteria_form(object:"role")<
-    code:text(title:"角色编码"),
-    name:text(title:"角色名称"),
-    status:select(title:"状态", data:"enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')]"),
-    criteria_search:button(action:"@role_table.search", title:"搜索"),
-    criteria_reset:button(action:"@role_criteria.reset", title:"重置")
+  role_criteria:criteria_form(title: "角色查询", data: "role", variable: "{role_criteria}", cols: "3")<
+    code:text(title: "角色编码"),
+    name:text(title: "角色名称"),
+    status:select(title: "状态", data: "enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')]")
   >,
-  role_table:paged_table(data:"role?role_criteria", cols:"3")<
+
+  role_toolbar:buttons<
+    criteria_search:button(title: "搜索", action: "@role_table.search"),
+    criteria_reset:button(title: "重置", action: "@role_criteria.reset"),
+    btn_add_role:button(title: "新建角色", action: "#acm/role_form_page")
+  >,
+
+  role_table:paged_table(title: "角色列表", data: "role?{role_criteria}")<
     id:hidden,
-    code:text(title:"角色编码"),
-    name:text(title:"角色名称"),
-    status:select(title:"状态"),
-    created_time:date(title:"创建时间"),
-    buttons(title:"操作", width:"220")<
-      view_role_detail:button(action:"@acm/role_detail_page?id", title:"配置权限"),
-      edit_role:button(action:"#acm/role_form_page?id", title:"编辑"),
-      delete_role:button(action:"@role_table.delete", title:"删除")
+    code:text(title: "角色编码"),
+    name:text(title: "角色名称"),
+    status:select(title: "状态", data: "enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')]"),
+    created_time:date(title: "创建时间"),
+    role_actions:buttons(title: "操作", width: "220")<
+      view_role_detail:button(title: "配置权限", action: "@acm/role_detail_page?id"),
+      edit_role:button(title: "编辑", action: "#acm/role_form_page?id"),
+      delete_role:button(title: "删除", action: "@role_table.delete")
     >
   >
 >
 
-acm/role_form_page:page(title:"编辑角色")<
-  role_entry:entry_form(title:"角色信息", data:"role?role_id", cols:"2")<
+acm/role_form_page:page(module: "acm", title: "编辑角色", data: "role?id")<
+  role_entry:entry_form(title: "角色信息", data: "role", cols: "2")<
     id:hidden,
-    code:text(title:"角色编码", required:"true"),
-    name:text(title:"角色名称", required:"true"),
-    status:select(title:"状态", required:"true", data:"enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')]"),
-    description:longtext(title:"描述", span:"2")
+    code:text(title: "角色编码", required: "true"),
+    name:text(title: "角色名称", required: "true"),
+    status:select(title: "状态", required: "true", data: "enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')]"),
+    description:longtext(title: "描述", span: "2")
   >,
-  buttons<
-    save_role:button(action:"@role_entry.save", title:"保存"),
-    close_role:button(action:"@acm/role_form_page.close", title:"关闭")
+  role_form_buttons:buttons<
+    save_role:button(title: "保存", action: "@role_entry.save"),
+    close_role:button(title: "关闭", action: "@acm/role_form_page.close")
   >
 >
 
 // 角色详情页：整合基本信息、关联的功能权限和数据权限规则
-acm/role_detail_page:page(title:"角色权限明细")<
-  role_tabs:tabs(title:"权限及范围配置")<
-    tab_info:tab(title:"基本信息")<
-      role_display:display_form(title:"角色信息", data:"role", data:"role?id")<
-        code:text(title:"角色编码"),
-        name:text(title:"角色名称"),
-        status:select(title:"状态", data:"enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')]"),
-        description:longtext(title:"描述", span:"2")
+acm/role_detail_page:page(module: "acm", title: "角色权限明细", data: "role?id")<
+  role_tabs:tabs(title: "权限及范围配置")<
+    tab_info:tab(title: "基本信息")<
+      role_display:display_form(title: "角色信息", data: "role", cols: "2")<
+        id:hidden,
+        code:text(title: "角色编码"),
+        name:text(title: "角色名称"),
+        status:select(title: "状态", data: "enum[ACT:ACTIVE('启用'),DIS:DISACTIVE('禁用')]"),
+        description:longtext(title: "描述", span: "2")
       >
     >,
-    tab_func_perm:tab(title:"功能权限绑定")<
-      // 通过关联表展示当前角色拥有的功能权限
-      role_perm_table:paged_table(data:"functional_permission?role_id", cols:"3")<
+    tab_func_perm:tab(title: "功能权限绑定")<
+      role_perm_table:paged_table(title: "已绑定功能权限", data: "functional_permission?{id}")<
         id:hidden,
-        code:text(title:"权限编码"),
-        name:text(title:"权限名称"),
-        type:select(title:"权限类型", data:"enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')]"),
-        path:text(title:"路由路径")
+        code:text(title: "权限编码"),
+        name:text(title: "权限名称"),
+        type:select(title: "权限类型", data: "enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')]"),
+        path:text(title: "路由路径")
       >
     >,
-    tab_data_rule:tab(title:"数据权限规则")<
-      // 展示和配置当前角色的数据范围规则
-      role_data_table:paged_table(data:"data_permission_rule?role_id", cols:"2")<
+    tab_data_rule:tab(title: "数据权限规则")<
+      role_data_table:paged_table(title: "数据范围规则", data: "data_permission_rule?{id}")<
         id:hidden,
-        resource_code:text(title:"资源编码"),
-        scope_type:select(title:"数据范围类型", data:"enum[ALL:ALL('全部数据'),OWN:OWNER('仅本人数据'),DEPT:DEPARTMENT('本部门数据'),SUB:SUBDEPT('本部门及子部门数据'),CST:CUSTOM('自定义部门数据')]"),
-        created_time:date(title:"创建时间")
+        resource_code:text(title: "资源编码"),
+        scope_type:select(title: "数据范围类型", data: "enum[ALL:ALL('全部数据'),OWN:OWNER('仅本人数据'),DEPT:DEPARTMENT('本部门数据'),SUB:SUBDEPT('本部门及子部门数据'),CST:CUSTOM('自定义部门数据')]"),
+        created_time:date(title: "创建时间")
       >
     >
   >
 >
 
-// ============================================================================
+// ----------------------------------------------------------------------------
 // 4. 功能权限管理模块 (Functional Permission)
-// ============================================================================
+// ----------------------------------------------------------------------------
+acm/perm_list_page:page(module: "acm", title: "权限要素管理")<
 
-acm/perm_list_page:page(title:"权限要素管理")<
-  perm_criteria:criteria_form(object:"functional_permission")<
-    code:text(title:"权限编码"),
-    name:text(title:"权限名称"),
-    type:select(title:"权限类型", data:"enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')]"),
-    criteria_search:button(action:"@perm_table.search", title:"搜索")
+  perm_criteria:criteria_form(title: "权限查询", data: "functional_permission", variable: "{perm_criteria}", cols: "3")<
+    code:text(title: "权限编码"),
+    name:text(title: "权限名称"),
+    type:select(title: "权限类型", data: "enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')]")
   >,
-  perm_table:paged_table(data:"functional_permission?perm_criteria", cols:"3")<
+
+  perm_toolbar:buttons<
+    criteria_search:button(title: "搜索", action: "@perm_table.search"),
+    criteria_reset:button(title: "重置", action: "@perm_criteria.reset"),
+    btn_add_perm:button(title: "新建权限", action: "#acm/perm_form_page")
+  >,
+
+  perm_table:paged_table(title: "权限要素列表", data: "functional_permission?{perm_criteria}")<
     id:hidden,
-    code:text(title:"权限编码"),
-    name:text(title:"权限名称"),
-    type:select(title:"权限类型"),
-    path:text(title:"接口路径"),
-    method:select(title:"HTTP方法"),
-    buttons(title:"操作", width:"180")<
-      edit_perm:button(action:"#acm/perm_form_page?id", title:"编辑"),
-      delete_perm:button(action:"@perm_table.delete", title:"删除")
+    code:text(title: "权限编码"),
+    name:text(title: "权限名称"),
+    type:select(title: "权限类型", data: "enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')]"),
+    path:text(title: "接口路径"),
+    method:select(title: "HTTP方法", data: "enum[GET:GET('获取'),POST:POST('新增'),PUT:PUT('修改'),DEL:DELETE('删除'),ALL:ALL('全部')]"),
+    perm_actions:buttons(title: "操作", width: "180")<
+      edit_perm:button(title: "编辑", action: "#acm/perm_form_page?id"),
+      delete_perm:button(title: "删除", action: "@perm_table.delete")
     >
   >
 >
 
-acm/perm_form_page:page(title:"编辑权限要素")<
-  perm_entry:entry_form(title:"权限信息", data:"functional_permission?id", cols:"2")<
+acm/perm_form_page:page(module: "acm", title: "编辑权限要素", data: "functional_permission?id")<
+  perm_entry:entry_form(title: "权限信息", data: "functional_permission", cols: "2")<
     id:hidden,
-    parent_id:number(title:"父权限ID"),
-    code:text(title:"权限编码", required:"true"),
-    name:text(title:"权限名称", required:"true"),
-    type:select(title:"权限类型", required:"true", data:"enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')]"),
-    path:text(title:"路由路径", span:"2"),
-    method:select(title:"HTTP方法", data:"enum[GET:GET('获取'),POST:POST('新增'),PUT:PUT('修改'),DEL:DELETE('删除'),ALL:ALL('全部')]"),
-    sort:number(title:"排序")
+    parent_id:number(title: "父权限ID"),
+    code:text(title: "权限编码", required: "true"),
+    name:text(title: "权限名称", required: "true"),
+    type:select(title: "权限类型", required: "true", data: "enum[MN:MENU('菜单'),BT:BUTTON('按钮'),AP:API('接口')]"),
+    path:text(title: "路由路径", span: "2"),
+    method:select(title: "HTTP方法", data: "enum[GET:GET('获取'),POST:POST('新增'),PUT:PUT('修改'),DEL:DELETE('删除'),ALL:ALL('全部')]"),
+    sort:number(title: "排序")
   >,
-  buttons<
-    save_perm:button(action:"@perm_entry.save", title:"保存"),
-    close_perm:button(action:"@acm/perm_form_page.close", title:"关闭")
+  perm_form_buttons:buttons<
+    save_perm:button(title: "保存", action: "@perm_entry.save"),
+    close_perm:button(title: "关闭", action: "@acm/perm_form_page.close")
   >
 >
 
-// ============================================================================
+// ----------------------------------------------------------------------------
 // 5. 用户授权关系模块 (User Role Assignment)
-// ============================================================================
+// ----------------------------------------------------------------------------
+acm/user_role_list_page:page(module: "acm", title: "用户授权管理")<
 
-acm/user_role_list_page:page(title:"用户授权管理")<
-  user_role_criteria:criteria_form(object:"user_role")<
-    user_id:number(title:"用户ID"),
-    role_id:select(title:"角色", data:"role"),
-    criteria_search:button(action:"@user_role_table.search", title:"查询")
+  user_role_criteria:criteria_form(title: "授权查询", data: "user_role", variable: "{user_role_criteria}", cols: "2")<
+    user_id:number(title: "用户ID"),
+    role_id:select(title: "角色")
   >,
-  user_role_table:paged_table(data:"user_role?user_role_criteria", cols:"3")<
-    user_id:number(title:"用户ID"),
-    role_id:select(title:"所属角色"),
-    scope_department_id:select(title:"作用部门限制"),
-    buttons(title:"操作", width:"120")<
-      revoke_role:button(action:"@user_role_table.delete", title:"取消授权")
+
+  user_role_toolbar:buttons<
+    criteria_search:button(title: "查询", action: "@user_role_table.search"),
+    criteria_reset:button(title: "重置", action: "@user_role_criteria.reset"),
+    btn_add_user_role:button(title: "新增授权", action: "#acm/user_role_form_page")
+  >,
+
+  user_role_table:paged_table(title: "用户授权列表", data: "user_role?{user_role_criteria}")<
+    id:hidden,
+    user_id:number(title: "用户ID"),
+    role_id:select(title: "所属角色"),
+    scope_department_id:select(title: "作用部门限制"),
+    user_role_actions:buttons(title: "操作", width: "120")<
+      revoke_role:button(title: "取消授权", action: "@user_role_table.delete")
     >
+  >
+>
+
+acm/user_role_form_page:page(module: "acm", title: "新增用户授权", data: "user_role?id")<
+  user_role_entry:entry_form(title: "授权信息", data: "user_role", cols: "2")<
+    id:hidden,
+    user_id:number(title: "用户ID", required: "true"),
+    role_id:select(title: "所属角色", required: "true"),
+    scope_department_id:select(title: "作用部门限制")
+  >,
+  user_role_form_buttons:buttons<
+    save_user_role:button(title: "保存", action: "@user_role_entry.save"),
+    close_user_role:button(title: "关闭", action: "@acm/user_role_form_page.close")
   >
 >

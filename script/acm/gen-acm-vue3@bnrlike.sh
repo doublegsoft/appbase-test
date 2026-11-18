@@ -11,7 +11,7 @@ export SPEC=acm
 export APPNAME=acm
 export NAMESPACE=acm
 export MOBELBASE_MODEL=spec/$SPEC/$SPEC.modelbase
-export GUIDBASE_MODEL=spec/$SPEC/$SPEC-desktop.guidbase
+export GUIDBASE_MODEL=spec/$SPEC/$SPEC@desktop.guidbase
 export PROJECT_ROOT=$OUTPUT_ROOT/"$SPEC"@bnrlike-1.x
 ################################################################################
 ##                                                                            ##
@@ -19,7 +19,7 @@ export PROJECT_ROOT=$OUTPUT_ROOT/"$SPEC"@bnrlike-1.x
 ##                                                                            ##
 ################################################################################
 REPOS=("javascript-desktop@vue3-1.x" "javascript-sdk@vanilla-1.x" \
-       "../html/html-desktop@bnrlike#vue3-1.x")
+       "../html/html-desktop@vue3#bnrlike-1.x")
 
 for repo in "${REPOS[@]}"
 do
